@@ -1,0 +1,63 @@
+import pandas as pd
+import win32com.client as win32
+import os
+import time
+import traceback
+from datetime import datetime
+
+def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True):
+    fileDir = os.path.dirname(os.path.realpath('__file__'))
+    filename = os.path.join(fileDir, des)
+    if indexIsNeed  is True:
+        if mode=="w":
+         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl') as writer:
+            df.to_excel(writer,
+                        encoding='utf_8_sig',
+                        index_label='id',
+                        sheet_name=sheetName)
+        else :
+         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl',if_sheet_exists="replace") as writer:
+            df.to_excel(writer,
+                        encoding='utf_8_sig',
+                        index_label='id',
+                        sheet_name=sheetName)
+    else :
+        if mode=="w":
+         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl') as writer:
+            df.to_excel(writer,
+                        encoding='utf_8_sig',
+                        index=False,
+                        sheet_name=sheetName)
+        else :
+         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl',if_sheet_exists="replace") as writer:
+            df.to_excel(writer,
+                        encoding='utf_8_sig',
+                        index=False,
+                        sheet_name=sheetName)
+
+    if autoFitIsNeed is True:
+        try:
+            excel = win32.DispatchEx('Excel.Application')
+            wb = excel.Workbooks.Open(filename)
+            ws = wb.Worksheets(sheetName)
+            ws.Columns.AutoFit()
+            wb.Save()
+            excel.Application.Quit()
+        except:
+            writeLogToFile(traceBack=traceback.format_exc())
+            print(f"Some error were founded,failed to formated the excel file : {des}")
+        
+        # for column in df:
+        #     print(column)
+        #     print(df[column].astype(str).map(len))
+        #     column_length = max(df[column].astype(str).map(len).max(), len(column))
+        #     col_idx = df.columns.get_loc(column)
+        #     writer.sheets[sheetName].set_column(col_idx, col_idx, column_length)
+
+def writeLogToFile(traceBack):
+    now = datetime.now()
+    now = now.strftime("%Y-%m-%d")
+    fileName = "./log/" + now + ".log"
+    sourceFile = open(fileName, 'a',encoding='utf_8')
+    print(traceBack, file = sourceFile)
+    sourceFile.close()
