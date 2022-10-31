@@ -15,3 +15,17 @@
 
 # python personProfile.py : 針對個人頁面產生文章統計資料(不含分享者相關資料),一樣吃input.json,特性:文章內容若為空的資料則濾掉不紀錄在excel中
 p.s : input.json 的searchDate ,會提供一個日期限制,久於該日期之後的文章則不蒐集(預設為1970-01-01 , 代表全蒐集)
+
+一、跑粉專跟其分享者
+
+1、inputjson設定跑main.py
+
+2、mergeAllDataParse.py
+
+二、跑個人頁面+朋友群資料
+
+1、inputjson設定跑personProfile.py
+
+2、mergeAllAboutData.py
+
+3、mergeAllFriendData.py

@@ -6,8 +6,15 @@ import traceback
 from datetime import datetime
 
 def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True):
+
+
     fileDir = os.path.dirname(os.path.realpath('__file__'))
     filename = os.path.join(fileDir, des)
+    
+    # product csv file
+    filename_csv = filename.replace(".xlsx","_" + sheetName + ".csv")
+    df.to_csv(filename_csv, index=False, encoding='utf_8_sig')
+
     if indexIsNeed  is True:
         if mode=="w":
          with pd.ExcelWriter(filename,mode=mode,engine='openpyxl') as writer:

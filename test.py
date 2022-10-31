@@ -34,6 +34,9 @@ import json
 # with open('contents.json', 'w', encoding='utf_8') as f:
 #     json.dump(contents, f, ensure_ascii=False, indent=4)
 
-# parser.buildAboutData([],"字浚賢")
-
-source = helper.__get_userid_section__("https://www.facebook.com/profile.php?id=100043937202809",0)
+# parser.buildAboutData([],"字浚賢")    
+helper.__get_friendzone_nov_section__("https://www.facebook.com/profile.php?id=100063501608985",0)
+# res = helper.Crawl_friendzone("https://www.facebook.com/profile.php?id=100014369017560")
+# params,cookie_xs,cookie_cUser = getFbCSRFToken.get_csrf_token()
+# fb_dtsg = params['fb_dtsg']
+# source = helper.Crawl_friendzone_id("https://www.facebook.com/profile.php?id=100014369017560",fb_dtsg,0)

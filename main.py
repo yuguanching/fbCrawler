@@ -1,7 +1,7 @@
 from helper import helper, Auxiliary, thread
 from ioService import parser, writer,reader
 from threading import Thread
-from webManager import webDriver
+from webManager import webDriver,getFbCSRFToken
 from datetime import datetime
 import pandas as pd
 import os
@@ -14,6 +14,9 @@ import time
 
 targetURLs,targetNames = Auxiliary.createIndexExcelAndRead()
 
+# params,cookie_xs,cookie_cUser = getFbCSRFToken.get_csrf_token()
+# fb_dtsg = params['fb_dtsg']
+fb_dtsg = ""
 
 for targetURL,targetName in zip(targetURLs,targetNames):
 
@@ -52,7 +55,7 @@ for targetURL,targetName in zip(targetURLs,targetNames):
         posts_count = 0
         for feedback_id in feedback_id_list:
             print(f"啟動 {feedback_id} 的線程...")
-            req_thread = thread.ThreadWithReturnValue(target=helper.Crawl_PageFeedback,args=(targetURL,feedback_id,docid,posts_count))
+            req_thread = thread.ThreadWithReturnValue(target=helper.Crawl_PageFeedback,args=(targetURL,feedback_id,docid,posts_count,req_name,fb_dtsg))
             req_thread.start()
             req_thread_list.append(req_thread)
             posts_count+=1

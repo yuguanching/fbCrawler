@@ -18,7 +18,7 @@ def mergeAllDataParseToExcel():
     for subDir in targetNames:
 
         #讀取相關的欄位
-        sharerDataDF = pd.read_excel(f"./output/{subDir}/{file_name}",sheet_name="sharerData",usecols="B:H")
+        sharerDataDF = pd.read_excel(f"./output/{subDir}/{file_name}",sheet_name="sharerData",usecols="B:I")
         sharerDF = pd.read_excel(f"./output/{subDir}/{file_name}",sheet_name="sharer",usecols="B:F")
         been_sharerDF = pd.read_excel(f"./output/{subDir}/{file_name}",sheet_name="been_sharer",usecols="B:E")
         all_sharerData_list.append(sharerDataDF)

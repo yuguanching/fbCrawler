@@ -34,7 +34,7 @@ def mergeAllAboutDataToExcel():
     for about_data in about_data_dict_list:
         for key,value in about_data.items():
             if key == 'about':
-                about_data['about'] = about_data['about'].reindex(['id','姓名','性別','生日','手機','信箱','住址','學經歷','居住','人際','社群'],axis=1)
+                about_data['about'] = about_data['about'].reindex(['id','姓名','性別','生日','手機','信箱','住址','個人頁連結','學經歷','居住','人際','社群'],axis=1)
                 allAboutDF = pd.concat([allAboutDF,about_data['about']],ignore_index=False)
                 personCount+=1
             else:
@@ -81,4 +81,5 @@ def mergeAllAboutDataToExcel():
 
 
 if __name__ == "__main__":
+    Auxiliary.createIndexExcelAndRead()
     mergeAllAboutDataToExcel()

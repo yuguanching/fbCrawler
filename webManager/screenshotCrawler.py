@@ -18,10 +18,10 @@ def CatchScreenshot(driver,url,count,switch,subDir):
     path = ""
     if switch == 0:
         path = "./output/" + subDir + "/img/sharer/" + str(count) + ".png"
-        locator = (By.CSS_SELECTOR,"div.alzwoclg.cqf1kptm.p1t2w4gn.fawcizw8.om3e55n1.g4tp4svg > div > div > div")
+        locator = (By.CSS_SELECTOR,"div.x78zum5.xdt5ytf.x10cihs4.x1t2pt76.x1n2onr6.x1ja2u2z > div > div > div")
     else :
         path = "./output/" + subDir + "/img/been_sharer/" + str(count) + ".png"
-        locator = (By.CSS_SELECTOR,"div.alzwoclg.cqf1kptm.p1t2w4gn.fawcizw8.om3e55n1.g4tp4svg > div > div")        
+        locator = (By.CSS_SELECTOR,"div.x78zum5.xdt5ytf.x10cihs4.x1t2pt76.x1n2onr6.x1ja2u2z > div > div")        
     
     try:
         #personal_profile上面的部分截圖

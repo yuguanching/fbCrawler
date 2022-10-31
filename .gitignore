@@ -1,2 +1,4 @@
 /output/*
 /log/*
+/temp/*
+/config/proxyList.json

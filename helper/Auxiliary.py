@@ -42,13 +42,28 @@ def detectURL(str):
 
 def dateCompare(targetTimeStamp):
     userSettingTime = reader.readInputJson()
-    userTimeObj = datetime.strptime(userSettingTime["searchDate"],"%Y-%m-%d")
+    userStartTimeObj = datetime.strptime(userSettingTime["searchStartDate"],"%Y-%m-%d %H:%M:%S")
+    userEndTimeObj = datetime.strptime(userSettingTime["searchEndDate"],"%Y-%m-%d %H:%M:%S")
 
-    targetTime = time.strftime("%Y-%m-%d",time.localtime(int(targetTimeStamp)))
-    targetTimeObj = datetime.strptime(targetTime,"%Y-%m-%d")
+    # 2022/10/29 加入是否從當前時間點作為起點的開關
+    if userSettingTime['isTimeEndToCurrent']:
+        userEndTimeObj = datetime.now()
+
+    targetTime = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(int(targetTimeStamp)))
+    targetTimeObj = datetime.strptime(targetTime,"%Y-%m-%d %H:%M:%S")
+
+    arriveFirstCatchTime = True
+    if targetTimeObj >= userEndTimeObj:
+        arriveFirstCatchTime = False
+
+
+    if (targetTimeObj > userStartTimeObj) and (targetTimeObj < userEndTimeObj) :
+        return True,arriveFirstCatchTime
+    else :
+        return False,arriveFirstCatchTime
     
-    # True : 還能抓 False:不能抓
-    return targetTimeObj > userTimeObj
+    # # True : 還能抓 False:不能抓
+    # return targetTimeObj > userTimeObj
 
 
 

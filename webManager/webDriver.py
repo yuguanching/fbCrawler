@@ -31,7 +31,7 @@ def catchFeedbackDynamicSource(pageURL,accountNumber):
     # 開啟無痕模式(有助於登入)
     options.add_argument('--incognito')
     # 開啟無頭模式,此模式下,會只執行瀏覽器的核心,而不開啟UI,可以順利在背景執行
-    options.add_argument("--headless")
+    # options.add_argument("--headless")
     options.add_argument("--window-size=1920,1080")
     # 設定運行時的語系
     options.add_argument("--lang=zh-tw")
@@ -48,10 +48,22 @@ def catchFeedbackDynamicSource(pageURL,accountNumber):
     options.add_argument('--disable-gpu')
     # 不加载图片, 提升速度(有操作截圖功能的話需要打開)
     options.add_argument('blink-settings=imagesEnabled=false')
+    options.headless = True
+
 
 
     print("開始動態加載feedback要用的js")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
+    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
+
+    driver = None
+    new_source = ""
+
+    while driver is None :
+        try:
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
+        except:
+            print(traceback.format_exc())
+            pass
         # 清掉暫存
     driver.delete_all_cookies()
 
@@ -62,45 +74,53 @@ def catchFeedbackDynamicSource(pageURL,accountNumber):
     driver.implicitly_wait(5)
 
     temp = []
-    for x in range(1, 5):
-        try:
-            driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
-            temp = WebDriverWait(driver, 5).until(
-                customWait.scrollWait('//div[@class="g4tp4svg mfclru0v om3e55n1 p8bdhjjv"]',
-                        temp, x))
-        except:
-            break
+    try:
+        for x in range(1, 5):
+            try:
+                driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+                temp = WebDriverWait(driver, 5).until(
+                    customWait.scrollWait('//div[@class="x1ja2u2z xh8yej3 x1n2onr6 x1yztbdb"]',
+                            temp, x))
+            except:
+                break
+        article_locator = (By.XPATH,
+                        "//div[@class='x1ja2u2z xh8yej3 x1n2onr6 x1yztbdb']")
+        articleStartPoint = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(article_locator))
 
-    article_locator = (By.XPATH,
-                    "//div[@class='g4tp4svg mfclru0v om3e55n1 p8bdhjjv']")
-    articleStartPoint = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located(article_locator))
+        for asp in articleStartPoint:
+            
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
 
-    new_source = ""
-    for asp in articleStartPoint:
-        
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
-
-        sharePointLocator = (By.XPATH,".//div[@class='dkzmklf5']//descendant::span[@class='f7rl1if4 adechonz f6oz4yja dahkl6ri axrg9lpx rufpak1n qtovjlwq qbmienfq rfyhaz4c rdmi1yqr ohrdq8us nswx41af fawcizw8 l1aqi3e3 sdu1flz4']")
-        try:
-            shareListPoint = WebDriverWait(asp,5).until(
-                EC.presence_of_all_elements_located(sharePointLocator))
-        except:
-            print("搜索其他文章來觸發分享節點的js")
-            continue
-        
-        time.sleep(random.randint(1,3))
-        if len(shareListPoint) <= 0:
-            print("搜索其他文章來觸發分享節點的js")
-            continue
-        else :           
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", shareListPoint[0])
-            for slp in shareListPoint:
-                hover = ActionChains(driver).move_to_element(slp)
-                hover.perform()
-                time.sleep(2)
-            new_source = driver.page_source
-            break
+            sharePointLocator = (By.XPATH,".//div[@class='xnfveip']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt x1jfb8zj xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j']")
+            try:
+                shareListPoint = WebDriverWait(asp,5).until(
+                    EC.presence_of_all_elements_located(sharePointLocator))
+            except:
+                print("搜索其他文章來觸發分享節點的js")
+                continue
+            
+            time.sleep(random.randint(1,3))
+            if len(shareListPoint) <= 0:
+                print("搜索其他文章來觸發分享節點的js")
+                continue
+            else :           
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", shareListPoint[0])
+                textCheck = ""
+                for slp in shareListPoint:
+                    textCheck = slp.text
+                    hover = ActionChains(driver).move_to_element(slp)
+                    hover.perform()
+                    time.sleep(2)
+                
+                if "分享" not in textCheck:
+                    print("鎖定的文章只有留言節點,沒有分享節點,無法觸發js加載,搜索其他文章來觸發分享節點的js")
+                    continue
+                new_source = driver.page_source
+                break
+    except:
+        print("粉專沒有抓到分享者加載的js,可能是網頁失效或是登入帳號失效導致,直接回傳空字串")
+        return new_source
 
     if len(new_source)>0:
         print("粉專有抓到分享者加載的js")
@@ -180,7 +200,7 @@ def getPageSource(pageURL,accountNumber=0):
 
     while driver is None :
         try:
-            driver = webdriver.Chrome("./chromedriver",options=options)
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         except:
             print(traceback.format_exc())
             pass
@@ -210,50 +230,135 @@ def getPageSource(pageURL,accountNumber=0):
 
 
 
-# def catchSectionAboutSource(pageURL):
+def catchSectionFriendzoneSource(pageURL,accountNumber=0):
     
-#     jsonArrayData = reader.readInputJson()
+    jsonArrayData = reader.readInputJson()
 
-#     # Main part start!
-#     # ------------------------Web driver settings-------------------------------------
-#     options = webdriver.ChromeOptions()
-#     # 避開彈跳視窗以免爬蟲被干擾
-#     options.add_argument("--disable-notifications")
-#     # 開啟無痕模式(有助於登入)
-#     options.add_argument('--incognito')
-#     # 開啟無頭模式,此模式下,會只執行瀏覽器的核心,而不開啟UI,可以順利在背景執行
-#     options.add_argument("--headless")
-#     options.add_argument("--window-size=1920,1080")
-#     # 設定運行時的語系
-#     options.add_argument("--lang=zh-tw")
-#     # options.add_experimental_option('prefs', {'intl.accept_languages': 'en,en_US'})
-#     # 屏蔽部分警告型log
-#     options.add_experimental_option('useAutomationExtension', False)
-#     options.add_experimental_option('excludeSwitches', ['enable-logging','enable-automation'])
-#     # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chorme crash，所以要改成寫入到 /tmp
-#     options.add_argument('--disable-dev-shm-usage')
-#     # 以最高權限運行
-#     options.add_argument('--no-sandbox')
-#     options.add_argument("--disable-setuid-sandbox")
-#     # google document 提到需要加上這個屬性來規避 bug
-#     options.add_argument('--disable-gpu')
-#     # 不加载图片, 提升速度(有操作截圖功能的話需要打開)
-#     options.add_argument('blink-settings=imagesEnabled=false')
+    # Main part start!
+    # ------------------------Web driver settings-------------------------------------
+    options = webdriver.ChromeOptions()
+    # 避開彈跳視窗以免爬蟲被干擾
+    options.add_argument("--disable-notifications")
+    # 開啟無痕模式(有助於登入)
+    options.add_argument('--incognito')
+    # 開啟無頭模式,此模式下,會只執行瀏覽器的核心,而不開啟UI,可以順利在背景執行
+    options.add_argument("--window-size=1920,1080")
+    # 設定運行時的語系
+    options.add_argument("--lang=zh-tw")
+    # options.add_experimental_option('prefs', {'intl.accept_languages': 'en,en_US'})
+    # 屏蔽部分警告型log
+    options.add_experimental_option('useAutomationExtension', False)
+    options.add_experimental_option('excludeSwitches', ['enable-logging','enable-automation'])
+    # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chorme crash，所以要改成寫入到 /tmp
+    options.add_argument('--disable-dev-shm-usage')
+    # 以最高權限運行
+    options.add_argument('--no-sandbox')
+    options.add_argument("--disable-setuid-sandbox")
+    # google document 提到需要加上這個屬性來規避 bug
+    options.add_argument('--disable-gpu')
+    # 不加载图片, 提升速度(有操作截圖功能的話需要打開)
+    options.add_argument('blink-settings=imagesEnabled=false')
 
+    options.headless = True
 
-#     print("開始動態加載feedback要用的js")
-#     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-#         # 清掉暫存
-#     driver.delete_all_cookies()
+    print("開始動態加載friendzone要用的js")
+    driver = None
 
-#     login(driver=driver,accountCounter=0,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
+    while driver is None :
+        try:
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
+        except:
+            print(traceback.format_exc())
+            pass
 
-#     driver.get(pageURL)
-#     # 隱式等待
-#     driver.implicitly_wait(5)
     
-#     bannerElement_locator = (By.XPATH,
-#                     "//div[@class='a26p89d5 lq84ybu9 hf30pyar om3e55n1 mfclru0v g4tp4svg icdlwmnq' and @role='tablist']")
-#     bannerElementPoint = WebDriverWait(driver, 10).until(
-#         EC.presence_of_all_elements_located(bannerElement_locator))
+    # 清掉暫存
+    driver.delete_all_cookies()
 
+    login(driver=driver,accountCounter=accountNumber,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
+
+    driver.get(pageURL)
+    # 隱式等待
+    driver.implicitly_wait(5)
+    time.sleep(2)
+    
+    bannerElement_locator = (By.XPATH,
+                    "//div[@class='xng8ra x6ikm8r x10wlt62 x1n2onr6 xh8yej3 x1ja2u2z x1a2a7pz' and @role='tablist']//descendant::a[@role='tab']")
+    bannerElementPoints = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located(bannerElement_locator))
+    
+    for bep in bannerElementPoints:
+        if bep.text=="朋友":
+            bep.click()
+        else:
+            continue
+        # hover = ActionChains(driver).move_to_element(bep)
+        # hover.perform()
+    
+    time.sleep(2)
+    new_source = driver.page_source    
+
+
+    if len(new_source)>0:
+        print("有抓到用戶加載的friendzone js")
+    else :
+        print("沒有抓到friendzone js,回傳空字串")
+    driver.close()
+    driver.quit()
+    driver = None
+    time.sleep(5)
+    return new_source
+
+
+def catchspecialJS(pageURL):
+     # Main part start!
+    # ------------------------Web driver settings-------------------------------------
+    options = webdriver.ChromeOptions()
+    # 避開彈跳視窗以免爬蟲被干擾
+    options.add_argument("--disable-notifications")
+    # 開啟無痕模式(有助於登入)
+    options.add_argument('--incognito')
+    # 開啟無頭模式,此模式下,會只執行瀏覽器的核心,而不開啟UI,可以順利在背景執行
+    options.add_argument("--window-size=1920,1080")
+    # 設定運行時的語系
+    options.add_argument("--lang=zh-tw")
+    # options.add_experimental_option('prefs', {'intl.accept_languages': 'en,en_US'})
+    # 屏蔽部分警告型log
+    options.add_experimental_option('useAutomationExtension', False)
+    options.add_experimental_option('excludeSwitches', ['enable-logging','enable-automation'])
+    # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chorme crash，所以要改成寫入到 /tmp
+    options.add_argument('--disable-dev-shm-usage')
+    # 以最高權限運行
+    options.add_argument('--no-sandbox')
+    options.add_argument("--disable-setuid-sandbox")
+    # google document 提到需要加上這個屬性來規避 bug
+    options.add_argument('--disable-gpu')
+    # 不加载图片, 提升速度(有操作截圖功能的話需要打開)
+    options.add_argument('blink-settings=imagesEnabled=false')
+
+    options.headless = True
+    driver = None
+
+    while driver is None :
+        try:
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
+        except:
+            print(traceback.format_exc())
+            pass
+
+    # 清掉暫存
+    driver.delete_all_cookies()
+
+    
+    driver.get(pageURL)
+    # 隱式等待
+    driver.implicitly_wait(5)
+    time.sleep(1)   
+    new_source = driver.page_source
+
+    driver.close()
+    driver.quit()
+    driver = None
+
+
+    return new_source

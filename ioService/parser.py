@@ -30,6 +30,7 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
     excel_file = './output/' + subDir + '/collectData.xlsx'
     date = []
     image_url = []
+    video_url = []
     like_count = []
     comment_count = []
     share_count = []
@@ -41,7 +42,7 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
 
     print(f"開始產生{subDir}的文章統計資料")
 
-    # 各內容的抓取位置請參考hepler.__parsing_edge__()
+    # 各內容的抓取位置請參考__resolver_edge__()
     for rawData in rawDataList:
         # 抓取並處理時間
         date.append((lambda input_time:time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(int(input_time))))(rawData["creation_time"]))
@@ -51,6 +52,9 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
 
         # 抓取圖片網址
         image_url.append(rawData["image_url"])
+
+        # 抓取影片網址
+        video_url.append(rawData["video_url"])
 
         # 抓取按讚數
         like_count.append(rawData["reaction_count"])
@@ -74,6 +78,7 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
         '按讚數': like_count,
         '留言數': comment_count,
         '分享數': share_count,
+        '影片網址':video_url,
         '文章網址': urls
     })
 
@@ -128,6 +133,7 @@ def buildDataParse(rawDataList,subDir):
     been_sharer_name = []
     been_sharer_url = []
     contents = []
+    permalinks = []
 
     print(f"開始產生 {subDir} 的分享者統計資料")
     for articleShareList in rawDataList:
@@ -148,6 +154,9 @@ def buildDataParse(rawDataList,subDir):
                 # 分享內容
                 if share_data["sharer_id"] != "" :
                     contents.append(share_data["contents"])
+
+                # 分享行為產生的單頁連結
+                permalinks.append(share_data["permalink"])
 
                 # # 分享者個人頁面
                 # profile = "https://www.facebook.com/profile.php?id=" + str(share_data[1])
@@ -180,7 +189,8 @@ def buildDataParse(rawDataList,subDir):
         "發布時間":sharer_time,
         "分享者網址":sharer_url,
         "被分享者名稱":been_sharer_name,
-        "被分享者網址":been_sharer_url
+        "被分享者網址":been_sharer_url,
+        "分享單頁連結":permalinks
     })
     df = df.reset_index() #重新定義流水號
     df.drop('index', inplace=True, axis=1)
@@ -252,6 +262,7 @@ def buildDataParse(rawDataList,subDir):
 
     #----------------------彙整好分享者統計資料後,抓取分享者的個人頁面截圖-------------------------
     try:
+        driver = None
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         # 清掉暫存
         driver.delete_all_cookies()
@@ -313,6 +324,7 @@ def buildDataParse(rawDataList,subDir):
     #---------------------------彙整好被分享者統計資料後,抓取社團/粉專連結頁面截圖-------------------------------
 
     try:
+        driver = None
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         # 清掉暫存
         driver.delete_all_cookies()
@@ -450,7 +462,7 @@ def createWordCloud(subDir,counter,for_all = False):
 
 
 
-def buildAboutData(AboutDataList,subDir):
+def buildAboutData(AboutDataList,subDir,targetURL):
     excel_file = './output/' + subDir + '/aboutData.xlsx'
 
     sheet_adjust_name = subDir.replace(" ","_")
@@ -602,7 +614,8 @@ def buildAboutData(AboutDataList,subDir):
         "生日":birthday,
         "手機":basic_dict['phone'],
         "信箱":basic_dict['email'],
-        "住址":basic_dict["address"]
+        "住址":basic_dict["address"],
+        "個人頁連結":targetURL
     }
 
     basicDF = pd.DataFrame.from_records([df_dict])    
@@ -640,3 +653,102 @@ def buildAssociation(excel_file,basicDF,association_map):
     writer.pdToExcel(des=excel_file,df=basicDF,sheetName="about",mode='a')
 
 
+def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
+    excel_file = './output/' + subDir + '/friendzoneData.xlsx'
+
+    nameList = []
+    genderList = []
+    birthdayList = []
+    phoneList = []
+    emailList = []
+    addressList = []
+    workList = []
+    workDateList = []
+    profileList = []
+    associateNameList = []
+    associateURLList = []
+
+    for data in FriendzoneDataList:
+         # 處理學經歷資料
+        experience_dict = data[1]
+
+
+        experience_name_list = []
+        experience_date_list = []
+
+        experience_name_list+=(experience_dict['work']['name'])
+
+        # 字串處理
+        for i in range(0,len(experience_name_list)):
+            startIndex = experience_name_list[i].find("at")
+            if startIndex== -1:
+                startIndex = experience_name_list[i].find("to")
+            if startIndex == -1:
+                experience_name_list[i] = experience_name_list[i]
+            else:
+                experience_name_list[i] = experience_name_list[i][startIndex+3:]    
+                
+        
+        experience_date_list+=(experience_dict['work']['date'])
+        if len(experience_name_list)!=0:
+            workList.append(experience_name_list[0])
+        else:
+            workList.append("")
+        if len(experience_date_list)!=0:
+            workDateList.append(experience_date_list[0])
+        else :
+            workDateList.append("")
+        
+        address_dict = data[2]
+        if len(address_dict['live']['name'])!=0:
+            addressList.append(address_dict['live']['name'][0])
+        else:
+            addressList.append("")
+        
+
+        basic_dict = data[3]
+
+        birthday = basic_dict['birthday_date']
+        if basic_dict['birthday_year']!="":
+            birthday = basic_dict['birthday_year'] + " " + birthday 
+
+        birthdayList.append(birthday)
+        genderList.append(basic_dict["gender"])
+        phoneList.append(basic_dict['phone'])
+        emailList.append(basic_dict['email'])
+
+
+        profile_dict = data[5]
+
+        nameList.append(profile_dict['name'])
+        profileList.append(profile_dict['url'])
+        associateNameList.append(subDir)
+        associateURLList.append(targetURL)
+
+    # print(f"nameList lens: {len(nameList)},contents : {nameList}")
+    # print(f"genderList lens: {len(genderList)},contents : {genderList}")
+    # print(f"birthdayList lens: {len(birthdayList)},contents : {birthdayList}")
+    # print(f"phoneList lens: {len(phoneList)},contents : {phoneList}")
+    # print(f"emailList lens: {len(emailList)},contents : {emailList}")
+    # print(f"addressList lens: {len(addressList)},contents : {addressList}")
+    # print(f"workList lens: {len(workList)},contents : {workList}")
+    # print(f"workDateList lens: {len(workDateList)},contents : {workDateList}")
+    # print(f"profileList lens: {len(profileList)},contents : {profileList}")
+
+    df = pd.DataFrame({
+        "關係人姓名":associateNameList,
+        "關係人個人頁連結":associateURLList,
+        "姓名":nameList,
+        "性別":genderList,
+        "生日":birthdayList,
+        "手機":phoneList,
+        "信箱":emailList,
+        "住址":addressList,
+        "工作":workList,
+        "工作起訖時間":workDateList,
+        "連結":profileList
+    })
+
+    df = df.reset_index() #重新定義流水號
+    df.drop('index', inplace=True, axis=1)
+    writer.pdToExcel(des=excel_file,df=df,sheetName="sheet1")
