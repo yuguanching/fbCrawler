@@ -28,15 +28,15 @@ def runUserInfo(jsonArrayData, fb_dtsg, process_num):
         proxy_ip_list = proxy.gRequestsProxyList(process_num=process_num)
         ip_list_str = json.dumps(proxy_ip_list)
         os.environ['proxy_list'] = ip_list_str
-        # 測速的開始時間戳記
-        articleTimeStart = datetime.now()
-        print(f"開始抓取 {targetName} 的文章資料")
-        postList = helper.Crawl_PagePosts(targetURL, jsonArrayData=jsonArrayData, proxy_ip_list=proxy_ip_list, process_num=process_num, targetName=targetName)
-        feedback_id_list = parser.buildCollectData(postList,subDir=targetName)
-        print(f"文章的feedback_id: {feedback_id_list}")
+        # # 測速的開始時間戳記
+        # articleTimeStart = datetime.now()
+        # print(f"開始抓取 {targetName} 的文章資料")
+        # postList = helper.Crawl_PagePosts(targetURL, jsonArrayData=jsonArrayData, proxy_ip_list=proxy_ip_list, process_num=process_num, targetName=targetName)
+        # feedback_id_list = parser.buildCollectData(postList,subDir=targetName)
+        # print(f"文章的feedback_id: {feedback_id_list}")
 
-        articleTimeEnd = datetime.now()
-        writer.writeLogToFile(f"測速: {targetName}的文章爬取執行時間為 {str(articleTimeEnd - articleTimeStart)}")
+        # articleTimeEnd = datetime.now()
+        # writer.writeLogToFile(f"測速: {targetName}的文章爬取執行時間為 {str(articleTimeEnd - articleTimeStart)}")
 
         about_docid = ""
         accountsLen = len(jsonArrayData['user']['account'])
@@ -61,12 +61,12 @@ def runUserInfo(jsonArrayData, fb_dtsg, process_num):
 
 
         about_docid = docid
-        aboutTimeStart = datetime.now()
-        aboutContentList = helper.Crawl_Section_About(targetURL,fb_dtsg=fb_dtsg,docid=about_docid,userid=userid,req_name=req_name,targetName=targetName,friendDict=None,proxy_ip_list=proxy_ip_list)
-        parser.buildAboutData(aboutContentList,subDir=targetName,targetURL=targetURL)
+        # aboutTimeStart = datetime.now()
+        # aboutContentList = helper.Crawl_Section_About(targetURL,fb_dtsg=fb_dtsg,docid=about_docid,userid=userid,req_name=req_name,targetName=targetName,friendDict=None,proxy_ip_list=proxy_ip_list)
+        # parser.buildAboutData(aboutContentList,subDir=targetName,targetURL=targetURL)
 
-        aboutTimeEnd = datetime.now()
-        writer.writeLogToFile(f"測速: {targetName}的關於資料爬取執行時間為 {str(aboutTimeEnd - aboutTimeStart)}")
+        # aboutTimeEnd = datetime.now()
+        # writer.writeLogToFile(f"測速: {targetName}的關於資料爬取執行時間為 {str(aboutTimeEnd - aboutTimeStart)}")
 
         friendTimeStart = datetime.now()
         friendzoneList = helper.Crawl_friendzone(pageurl=targetURL,jsonArrayData=jsonArrayData,proxy_ip_list=proxy_ip_list, process_num=process_num, targetName=targetName)
