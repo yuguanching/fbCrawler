@@ -10,7 +10,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
 from webManager import customWait
-from ioService import reader
+from ioService import reader,writer
 import os
 import json
 import random
@@ -19,9 +19,7 @@ import time
 # 關閉web driver的log訊息
 os.environ['WDM_LOG_LEVEL'] = '0'
 
-def catchFeedbackDynamicSource(pageURL,accountNumber):
-
-    jsonArrayData = reader.readInputJson()
+def catchFeedbackDynamicSource(pageURL,accountNumber,jsonArrayData):
 
     # Main part start!
     # ------------------------Web driver settings-------------------------------------
@@ -62,9 +60,14 @@ def catchFeedbackDynamicSource(pageURL,accountNumber):
         try:
             driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         except:
+            writer.writeLogToFile(traceBack=traceback.format_exc())
             print(traceback.format_exc())
-            pass
-        # 清掉暫存
+            driver = None
+            time.sleep(10)
+            continue        
+    
+    
+    # 清掉暫存
     driver.delete_all_cookies()
 
     login(driver=driver,accountCounter=accountNumber,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
@@ -118,7 +121,8 @@ def catchFeedbackDynamicSource(pageURL,accountNumber):
                     continue
                 new_source = driver.page_source
                 break
-    except:
+    except Exception as e:
+        print("動態加載feedback js 發生錯誤: " ,str(e))
         print("粉專沒有抓到分享者加載的js,可能是網頁失效或是登入帳號失效導致,直接回傳空字串")
         return new_source
 
@@ -164,9 +168,7 @@ def login(driver,accountCounter,jsonArrayData,loginURL) :
     return
 
 
-def getPageSource(pageURL,accountNumber=0):
-
-    jsonArrayData = reader.readInputJson()
+def getPageSource(pageURL,jsonArrayData,accountNumber=0):
 
     # ------------------------Web driver settings-------------------------------------
     options = webdriver.ChromeOptions()
@@ -202,8 +204,11 @@ def getPageSource(pageURL,accountNumber=0):
         try:
             driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         except:
+            writer.writeLogToFile(traceBack=traceback.format_exc())
             print(traceback.format_exc())
-            pass
+            driver = None
+            time.sleep(10)
+            continue
 
     # 清掉暫存
     driver.delete_all_cookies()
@@ -230,10 +235,8 @@ def getPageSource(pageURL,accountNumber=0):
 
 
 
-def catchSectionFriendzoneSource(pageURL,accountNumber=0):
+def catchSectionFriendzoneSource(pageURL,jsonArrayData,accountNumber=0):
     
-    jsonArrayData = reader.readInputJson()
-
     # Main part start!
     # ------------------------Web driver settings-------------------------------------
     options = webdriver.ChromeOptions()
@@ -263,13 +266,17 @@ def catchSectionFriendzoneSource(pageURL,accountNumber=0):
 
     print("開始動態加載friendzone要用的js")
     driver = None
+    new_source = ""
 
     while driver is None :
         try:
             driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         except:
+            writer.writeLogToFile(traceBack=traceback.format_exc())
             print(traceback.format_exc())
-            pass
+            driver = None
+            time.sleep(10)
+            continue
 
     
     # 清掉暫存
@@ -281,22 +288,26 @@ def catchSectionFriendzoneSource(pageURL,accountNumber=0):
     # 隱式等待
     driver.implicitly_wait(5)
     time.sleep(2)
-    
-    bannerElement_locator = (By.XPATH,
-                    "//div[@class='xng8ra x6ikm8r x10wlt62 x1n2onr6 xh8yej3 x1ja2u2z x1a2a7pz' and @role='tablist']//descendant::a[@role='tab']")
-    bannerElementPoints = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located(bannerElement_locator))
-    
-    for bep in bannerElementPoints:
-        if bep.text=="朋友":
-            bep.click()
-        else:
-            continue
-        # hover = ActionChains(driver).move_to_element(bep)
-        # hover.perform()
-    
-    time.sleep(2)
-    new_source = driver.page_source    
+    try:
+        bannerElement_locator = (By.XPATH,
+                        "//div[@class='xng8ra x6ikm8r x10wlt62 x1n2onr6 xh8yej3 x1ja2u2z x1a2a7pz' and @role='tablist']//descendant::a[@role='tab']")
+        bannerElementPoints = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(bannerElement_locator))
+        
+        for bep in bannerElementPoints:
+            if bep.text=="朋友":
+                bep.click()
+            else:
+                continue
+            # hover = ActionChains(driver).move_to_element(bep)
+            # hover.perform()
+        
+        time.sleep(2)
+        new_source = driver.page_source    
+    except Exception as e:
+        print("動態加載friendzone js 發生錯誤: " ,str(e))
+        print("沒有抓到朋友群加載的js,可能是網頁失效或是登入帳號失效導致,直接回傳空字串")
+        return new_source
 
 
     if len(new_source)>0:
@@ -343,8 +354,11 @@ def catchspecialJS(pageURL):
         try:
             driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
         except:
+            writer.writeLogToFile(traceBack=traceback.format_exc())
             print(traceback.format_exc())
-            pass
+            driver = None
+            time.sleep(10)
+            continue
 
     # 清掉暫存
     driver.delete_all_cookies()

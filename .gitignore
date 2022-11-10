@@ -2,3 +2,7 @@
 /log/*
 /temp/*
 /config/proxyList.json
+/config/input.json
+/config/allPerson.json
+chromedriver.exe
+test.py

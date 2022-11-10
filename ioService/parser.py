@@ -23,8 +23,6 @@ from PIL import Image
 # 關閉web driver的log訊息
 os.environ['WDM_LOG_LEVEL'] = '0'
 
-jsonArrayData = reader.readInputJson()
-
 def buildCollectData(rawDataList,subDir,dropNA = False):
 
     excel_file = './output/' + subDir + '/collectData.xlsx'
@@ -94,7 +92,7 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
 
 
 
-def buildDataParse(rawDataList,subDir):
+def buildDataParse(rawDataList,subDir,jsonArrayData):
 
     # ------------------------Web driver settings-------------------------------------
     options = webdriver.ChromeOptions()
@@ -611,7 +609,7 @@ def buildAboutData(AboutDataList,subDir,targetURL):
     df_dict = {
         "姓名":subDir,
         "性別":basic_dict['gender'],
-        "生日":birthday,
+        "生日":str(birthday),
         "手機":basic_dict['phone'],
         "信箱":basic_dict['email'],
         "住址":basic_dict["address"],
@@ -712,7 +710,7 @@ def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
         if basic_dict['birthday_year']!="":
             birthday = basic_dict['birthday_year'] + " " + birthday 
 
-        birthdayList.append(birthday)
+        birthdayList.append(str(birthday))
         genderList.append(basic_dict["gender"])
         phoneList.append(basic_dict['phone'])
         emailList.append(basic_dict['email'])

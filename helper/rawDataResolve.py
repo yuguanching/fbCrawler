@@ -216,7 +216,10 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
                                 else:
                                     work_date_list.append("")
                                 if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    work_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                        work_link_list.append("")
+                                    else:
+                                        work_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     work_link_list.append("")
                             case 1: #大專院校
@@ -226,7 +229,10 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
                                 else:
                                     college_date_list.append("")
                                 if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    college_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                        college_link_list.append("")
+                                    else:
+                                        college_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     college_link_list.append("")
                             case 2: #高中
@@ -236,7 +242,10 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
                                 else:
                                     highSchool_date_list.append("")
                                 if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    highSchool_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                        highSchool_link_list.append("")
+                                    else:
+                                        highSchool_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     highSchool_link_list.append("")
 
@@ -321,7 +330,8 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
                                     case "email":
                                         email = profile_fields[innerNumber]['title']['text']
                                     case _:
-                                        print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
+                                        pass
+                                        # print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
                             case 1: #社群
                                 social_name_list.append(profile_fields[innerNumber]['title']['text'])
                                 social_type_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
@@ -339,7 +349,8 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
                                         else :
                                             birthday_year = profile_fields[innerNumber]['title']['text']
                                     case _:
-                                        print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
+                                        pass
+                                        # print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
             about_social_dict = {
                 "name":social_name_list,
                 "link":social_link_list,

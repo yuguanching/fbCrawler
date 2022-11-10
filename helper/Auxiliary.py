@@ -20,9 +20,6 @@ def createIndexExcelAndRead():
     writer.pdToExcel(des='./output/index.xlsx',df=index_df,sheetName="sheet1")
     print("已完成目標粉專的目錄建置")
 
-    return jsonArrayData['targetURL'],jsonArrayData['targetName']
-
-
 
 def checkDirAndCreate(count):
     if os.path.exists("./output/" + str(count)):
@@ -40,8 +37,7 @@ def detectURL(str):
 
 
 
-def dateCompare(targetTimeStamp):
-    userSettingTime = reader.readInputJson()
+def dateCompare(targetTimeStamp,userSettingTime):
     userStartTimeObj = datetime.strptime(userSettingTime["searchStartDate"],"%Y-%m-%d %H:%M:%S")
     userEndTimeObj = datetime.strptime(userSettingTime["searchEndDate"],"%Y-%m-%d %H:%M:%S")
 
@@ -70,3 +66,10 @@ def dateCompare(targetTimeStamp):
 def make_hyperlink(value,name,index = "1"):
     url = "#{}!A{}"
     return '=HYPERLINK("%s", "%s")' % (url.format(value,index), name) 
+
+
+
+# 陣列分群輔助函式
+def split(a, n):
+    k, m = divmod(len(a), n)
+    return list((a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)))

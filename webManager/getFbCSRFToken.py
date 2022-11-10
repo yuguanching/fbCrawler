@@ -5,11 +5,11 @@ from helper import  Auxiliary
 from webManager import webDriver
 import time
 import os
+import traceback
 
 os.environ['WDM_LOG_LEVEL'] = '0'
 
-def get_csrf_token():
-    jsonArrayData = reader.readInputJson()
+def get_csrf_token(jsonArrayData):
     target = None
     targetURL = jsonArrayData['targetURL']
     count = 0
@@ -30,7 +30,6 @@ def get_csrf_token():
     params_dict = ""
     cookies_xs = ""
     cookies_cUser = ""
-    
     while True:
         try:
             driver = webdriver.Chrome(ChromeDriverManager().install(),options=options,seleniumwire_options=wire_options)
@@ -38,7 +37,6 @@ def get_csrf_token():
 
             webDriver.login(driver=driver,accountCounter=count,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
             driver.get(targetURL[0])
-
             time.sleep(3)
 
             for req in driver.requests:
@@ -62,7 +60,8 @@ def get_csrf_token():
                 print(cookies_xs)
                 print(cookies_cUser)
                 return params_dict,cookies_xs,cookies_cUser
-        except:
+        except Exception as e:
+            # print(traceback.format_exc())
             count+=1
             if count >=len(targetURL):
                 count = 0

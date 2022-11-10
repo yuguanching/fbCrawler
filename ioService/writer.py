@@ -63,8 +63,15 @@ def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True)
 
 def writeLogToFile(traceBack):
     now = datetime.now()
-    now = now.strftime("%Y-%m-%d")
-    fileName = "./log/" + now + ".log"
-    sourceFile = open(fileName, 'a',encoding='utf_8')
-    print(traceBack, file = sourceFile)
+    now_for_file = now.strftime("%Y-%m-%d")
+    now_for_log = now.strftime("%Y-%m-%d, %H:%M:%S")
+    fileName = "./log/" + now_for_file + ".log"
+    sourceFile = open(fileName, 'a',encoding='utf_8_sig')
+    print(f"[{now_for_log}] : {traceBack}", file = sourceFile)
     sourceFile.close()
+
+
+def writeTempFile(filename,content):
+    f = open("./temp/" + filename + ".txt", "w",encoding='utf_8_sig')
+    f.write(content)
+    f.close()
