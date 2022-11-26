@@ -17,8 +17,8 @@ class scrollWait:
     def __call__(self, driver):
         sleep = (self._count // 10) + 1
         time.sleep(sleep)
-        newList = driver.find_elements(By.XPATH, self._locator)
-        if (len(newList) > len(self._oldList)):
-            return newList
+        new_list = driver.find_elements(By.XPATH, self._locator)
+        if (len(new_list) > len(self._oldList)):
+            return new_list
         else:
             return False

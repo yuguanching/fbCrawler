@@ -1,10 +1,10 @@
 
 import traceback
 import re
-from ioService import writer,reader
+from ioService import writer
 
 
-def __resolver_edge__(edge):
+def __resolverEdgesPage__(edge) -> dict:
 
     ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
 
@@ -16,7 +16,7 @@ def __resolver_edge__(edge):
         creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
         # message
         message = comet_sections_['content']['story']['comet_sections'].get('message','').get('story','').get('message','').get('text','') if comet_sections_['content']['story']['comet_sections'].get('message','') else ''
-        message= ILLEGAL_CHARACTERS_RE.sub(r'', message)
+        message = ILLEGAL_CHARACTERS_RE.sub(r'', message)
         # postid
         postid = comet_sections_['feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['subscription_target_id']
         # actorid
@@ -60,19 +60,19 @@ def __resolver_edge__(edge):
         image_url = ""
     else:
         try :
-            attachObj = comet_sections_['content']['story']['attachments'][0]['styles']['attachment']
+            attach_obj = comet_sections_['content']['story']['attachments'][0]['styles']['attachment']
             # 單張圖片
-            if "media" in attachObj:
-                if "photo_image" in attachObj['media']:
-                    image_url =  attachObj['media']['photo_image']['uri']
-                elif "image" in  attachObj['media']:
-                    image_url =  attachObj['media']['image']['uri']
+            if "media" in attach_obj:
+                if "photo_image" in attach_obj['media']:
+                    image_url =  attach_obj['media']['photo_image']['uri']
+                elif "image" in  attach_obj['media']:
+                    image_url =  attach_obj['media']['image']['uri']
                 else :
                     image_url = ""
             # 多張圖片
-            elif "all_subattachments" in attachObj:
+            elif "all_subattachments" in attach_obj:
                 try : 
-                    image_url = attachObj['all_subattachments']['nodes'][0]['media']['image']['uri']
+                    image_url = attach_obj['all_subattachments']['nodes'][0]['media']['image']['uri']
                 except:
                     writer.writeLogToFile(traceBack=traceback.format_exc())
                 finally:
@@ -81,7 +81,6 @@ def __resolver_edge__(edge):
                 image_url = ""
         except:
             print("這篇文章不含圖片格式供抓取,可能是分享影片格式")
-            writer.writeLogToFile(traceBack=traceback.format_exc())
             image_url = ""
 
     #video_url 
@@ -118,7 +117,7 @@ def __resolver_edge__(edge):
 
 
 
-def resolver_edges_feedback(edge,posts_count):
+def __resolverEdgesFeedback__(edge, posts_count) -> dict:
     comet_sections_ = edge['node']['comet_sections']
 
     # 分享者名稱
@@ -130,17 +129,17 @@ def resolver_edges_feedback(edge,posts_count):
     # 分享者id
     sharer_id = comet_sections_['content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['id']
     # 內容
-    contents_checkPoint = comet_sections_['content']['story']['message']
-    if not contents_checkPoint is None:
-        contents = contents_checkPoint['text']
+    contents_check_point = comet_sections_['content']['story']['message']
+    if not contents_check_point is None:
+        contents = contents_check_point['text']
     else:
         contents = ""
     
     #被分享者可能不存在
     #被分享者名稱(需另外處理)
-    been_sharer_checkPoint = comet_sections_['content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['title']
-    if not been_sharer_checkPoint is None:
-        been_sharer_raw_name = been_sharer_checkPoint['text']
+    been_sharer_check_point = comet_sections_['content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['title']
+    if not been_sharer_check_point is None:
+        been_sharer_raw_name = been_sharer_check_point['text']
         #被分享者網址
         been_sharer_id = edge['node']['feedback']['associated_group']['id']
     else:
@@ -175,7 +174,7 @@ def resolver_edges_feedback(edge,posts_count):
 
 
 
-def __resolver_SectionAbout_edge__(edge,aboutNumber):
+def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
     # 0:總覽，1:學歷與工作經歷，2:住過的地方，3:聯絡和基本資料，4:家人和感情狀況
     match aboutNumber:
         case 0:
@@ -190,7 +189,7 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             }
             return dict_output
         case 1:
-            startPoint = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
+            start_point = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
             name = "學經歷"
             work_name_list = []
             work_link_list = []
@@ -202,50 +201,50 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             highSchool_link_list = []
             highSchool_date_list = []
 
-            for number in range(0,len(startPoint)):
-                profile_fields = startPoint[number]["profile_fields"]["nodes"]
-                for innerNumber in range(0,len(profile_fields)):
-                    if profile_fields[innerNumber]['field_type'] == "null_state":
+            for number in range(0,len(start_point)):
+                profile_fields = start_point[number]["profile_fields"]["nodes"]
+                for inner_number in range(0,len(profile_fields)):
+                    if profile_fields[inner_number]['field_type'] == "null_state":
                         break
                     else:
                         match number:
                             case 0: #工作
-                                work_name_list.append(profile_fields[innerNumber]['title']['text'])
-                                if len(profile_fields[innerNumber]['list_item_groups'])!=0:
-                                    work_date_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                work_name_list.append(profile_fields[inner_number]['title']['text'])
+                                if len(profile_fields[inner_number]['list_item_groups'])!=0:
+                                    work_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     work_date_list.append("")
-                                if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                    if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         work_link_list.append("")
                                     else:
-                                        work_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                        work_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     work_link_list.append("")
                             case 1: #大專院校
-                                college_name_list.append(profile_fields[innerNumber]['title']['text'])
-                                if len(profile_fields[innerNumber]['list_item_groups'])!=0:
-                                    college_date_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                college_name_list.append(profile_fields[inner_number]['title']['text'])
+                                if len(profile_fields[inner_number]['list_item_groups'])!=0:
+                                    college_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     college_date_list.append("")
-                                if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                    if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         college_link_list.append("")
                                     else:
-                                        college_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                        college_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     college_link_list.append("")
                             case 2: #高中
-                                highSchool_name_list.append(profile_fields[innerNumber]['title']['text'])
-                                if len(profile_fields[innerNumber]['list_item_groups'])!=0:
-                                    highSchool_date_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                highSchool_name_list.append(profile_fields[inner_number]['title']['text'])
+                                if len(profile_fields[inner_number]['list_item_groups'])!=0:
+                                    highSchool_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     highSchool_date_list.append("")
-                                if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    if profile_fields[innerNumber]['title']['ranges'][0]['entity'] is None:
+                                if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                    if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         highSchool_link_list.append("")
                                     else:
-                                        highSchool_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                        highSchool_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     highSchool_link_list.append("")
 
@@ -272,21 +271,21 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             }
             return dict_output
         case 2:
-            startPoint = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
+            start_point = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
             name = "居住"
             live_name_list = []
             live_type_list = []
             live_link_list = []
-            for number in range(0,len(startPoint)):
-                profile_fields = startPoint[number]["profile_fields"]["nodes"]
-                for innerNumber in range(0,len(profile_fields)):
-                        if profile_fields[innerNumber]['field_type'] == "null_state":
+            for number in range(0,len(start_point)):
+                profile_fields = start_point[number]["profile_fields"]["nodes"]
+                for inner_number in range(0,len(profile_fields)):
+                        if profile_fields[inner_number]['field_type'] == "null_state":
                             break
                         else:
-                            live_name_list.append(profile_fields[innerNumber]['title']['text'])
-                            live_type_list.append(profile_fields[innerNumber]['field_type']) # current_city、hometown
-                            if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                live_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                            live_name_list.append(profile_fields[inner_number]['title']['text'])
+                            live_type_list.append(profile_fields[inner_number]['field_type']) # current_city、hometown
+                            if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                live_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                             else:
                                 live_link_list.append("")
 
@@ -302,7 +301,7 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             }
             return dict_output
         case 3:
-            startPoint = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
+            start_point = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
             name = "社群"
             phone = ""
             email = ""
@@ -314,43 +313,43 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             social_link_list = []
             social_type_list = []
 
-            for number in range(0,len(startPoint)):
-                profile_fields = startPoint[number]["profile_fields"]["nodes"]
-                for innerNumber in range(0,len(profile_fields)):
-                    if profile_fields[innerNumber]['field_type'] == "null_state":
+            for number in range(0,len(start_point)):
+                profile_fields = start_point[number]["profile_fields"]["nodes"]
+                for inner_number in range(0,len(profile_fields)):
+                    if profile_fields[inner_number]['field_type'] == "null_state":
                         break
                     else:
                         match number:
                             case 0: #聯絡
-                                match profile_fields[innerNumber]['field_type']:
+                                match profile_fields[inner_number]['field_type']:
                                     case "other_phone":
-                                        phone =  profile_fields[innerNumber]['title']['text']
+                                        phone =  profile_fields[inner_number]['title']['text']
                                     case "address":
-                                        address = profile_fields[innerNumber]['title']['text']
+                                        address = profile_fields[inner_number]['title']['text']
                                     case "email":
-                                        email = profile_fields[innerNumber]['title']['text']
+                                        email = profile_fields[inner_number]['title']['text']
                                     case _:
                                         pass
-                                        # print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
+                                        # print(f"{profile_fields[inner_number]['field_type']} 不是欲收集的聯絡資料")
                             case 1: #社群
-                                social_name_list.append(profile_fields[innerNumber]['title']['text'])
-                                social_type_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
-                                if profile_fields[innerNumber]['link_url'] is None:
-                                    social_link_list.append(profile_fields[innerNumber]['title']['text'])
+                                social_name_list.append(profile_fields[inner_number]['title']['text'])
+                                social_type_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                if profile_fields[inner_number]['link_url'] is None:
+                                    social_link_list.append(profile_fields[inner_number]['title']['text'])
                                 else :
-                                    social_link_list.append(profile_fields[innerNumber]['link_url'])
+                                    social_link_list.append(profile_fields[inner_number]['link_url'])
                             case 2: #基本資料
-                                match profile_fields[innerNumber]['field_type']:
+                                match profile_fields[inner_number]['field_type']:
                                     case "gender":
-                                        gender =  profile_fields[innerNumber]['title']['text']
+                                        gender =  profile_fields[inner_number]['title']['text']
                                     case "birthday":
-                                        if profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'] == "Birth date":
-                                            birthday_date = profile_fields[innerNumber]['title']['text']
+                                        if profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'] == "Birth date":
+                                            birthday_date = profile_fields[inner_number]['title']['text']
                                         else :
-                                            birthday_year = profile_fields[innerNumber]['title']['text']
+                                            birthday_year = profile_fields[inner_number]['title']['text']
                                     case _:
                                         pass
-                                        # print(f"{profile_fields[innerNumber]['field_type']} 不是欲收集的聯絡資料")
+                                        # print(f"{profile_fields[inner_number]['field_type']} 不是欲收集的聯絡資料")
             about_social_dict = {
                 "name":social_name_list,
                 "link":social_link_list,
@@ -369,37 +368,37 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
 
             return dict_output
         case 4:
-            startPoint = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
+            start_point = edge['activeCollections']['nodes'][0]['style_renderer']['profile_field_sections']
             name = "人際"
             relationship_name_list=  []
             relationship_link_list = []
             relationship_type_list = []
 
-            for number in range(0,len(startPoint)):
-                profile_fields = startPoint[number]["profile_fields"]["nodes"]
-                for innerNumber in range(0,len(profile_fields)):
-                    if profile_fields[innerNumber]['field_type'] == "null_state":
+            for number in range(0,len(start_point)):
+                profile_fields = start_point[number]["profile_fields"]["nodes"]
+                for inner_number in range(0,len(profile_fields)):
+                    if profile_fields[inner_number]['field_type'] == "null_state":
                         break
                     else:
                         match number:
                             case 0: #感情狀況
-                                if len(profile_fields[innerNumber]['list_item_groups'])!=0: # 單身
-                                    relationship_name_list.append(profile_fields[innerNumber]['title']['text'])
+                                if len(profile_fields[inner_number]['list_item_groups'])!=0: # 單身
+                                    relationship_name_list.append(profile_fields[inner_number]['title']['text'])
                                     relationship_type_list.append("情侶")
-                                    if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                        relationship_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                    if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                        relationship_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                     else:
                                         relationship_link_list.append("")                            
                             case 1: #家人與親屬
-                                relationship_name_list.append(profile_fields[innerNumber]['title']['text'])
+                                relationship_name_list.append(profile_fields[inner_number]['title']['text'])
 
-                                if len(profile_fields[innerNumber]['list_item_groups'])!=0:
-                                    relationship_type_list.append(profile_fields[innerNumber]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                if len(profile_fields[inner_number]['list_item_groups'])!=0:
+                                    relationship_type_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     relationship_type_list.append("")
 
-                                if len(profile_fields[innerNumber]['title']['ranges'])!=0:
-                                    relationship_link_list.append(profile_fields[innerNumber]['title']['ranges'][0]['entity']['url'])
+                                if len(profile_fields[inner_number]['title']['ranges'])!=0:
+                                    relationship_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                     if relationship_link_list[-1] is None :
                                         relationship_link_list[-1] = ""
                                 else:
@@ -421,19 +420,19 @@ def __resolver_SectionAbout_edge__(edge,aboutNumber):
             return {}
 
 
-def __resolver_friendzone_edge__(edge):
+def __resolverEdgesFriendzone__(edge) -> dict:
     name = edge['node']['title']['text']
-    profileURL = edge['node']['url']
+    profile_url = edge['node']['url']
     cursor = edge['cursor']
-    userID = edge['node']['node']['id']
+    user_id = edge['node']['node']['id']
 
-    if profileURL is None:
-        profileURL = "https://www.facebook.com/profile.php?id=" + userID
+    if profile_url is None:
+        profile_url = "https://www.facebook.com/profile.php?id=" + user_id
 
     dict_output = {
     "name":name,
-    "url":profileURL,
-    "userID":userID,
+    "url":profile_url,
+    "userID":user_id,
     "cursor":cursor
     }
 

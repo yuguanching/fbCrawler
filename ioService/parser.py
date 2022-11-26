@@ -13,17 +13,18 @@ import openpyxl
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from collections import Counter
 from ioService import writer,reader
 from helper import  Auxiliary
-from webManager import webDriver, screenshotCrawler
+from webManager import webDriver
 from wordcloud import WordCloud
 from PIL import Image
 # 關閉web driver的log訊息
 os.environ['WDM_LOG_LEVEL'] = '0'
 
-def buildCollectData(rawDataList,subDir,dropNA = False):
+def buildCollectData(rawDataList, subDir, dropNA = False) -> list:
 
     excel_file = './output/' + subDir + '/collectData.xlsx'
     date = []
@@ -40,34 +41,34 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
 
     print(f"開始產生{subDir}的文章統計資料")
 
-    # 各內容的抓取位置請參考__resolver_edge__()
-    for rawData in rawDataList:
+    # 各內容的抓取位置請參考__resolverEdgesPage__()
+    for raw_data in rawDataList:
         # 抓取並處理時間
-        date.append((lambda input_time:time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(int(input_time))))(rawData["creation_time"]))
+        date.append((lambda input_time:time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(input_time))))(raw_data["creation_time"]))
 
         # 抓取文章內容
-        content.append(rawData["message"])
+        content.append(raw_data["message"])
 
         # 抓取圖片網址
-        image_url.append(rawData["image_url"])
+        image_url.append(raw_data["image_url"])
 
         # 抓取影片網址
-        video_url.append(rawData["video_url"])
+        video_url.append(raw_data["video_url"])
 
         # 抓取按讚數
-        like_count.append(rawData["reaction_count"])
+        like_count.append(raw_data["reaction_count"])
 
         # 抓取留言數
-        comment_count.append(rawData["comment_count"])
+        comment_count.append(raw_data["comment_count"])
 
         # 抓取分享數
-        share_count.append(rawData["share_count"])
+        share_count.append(raw_data["share_count"])
 
         #抓取文章的分享id標記
-        feedback_id.append(rawData["feedback_id"])
+        feedback_id.append(raw_data["feedback_id"])
 
         #抓取文章網址
-        urls.append(rawData["url"])
+        urls.append(raw_data["url"])
 
     df = pd.DataFrame({
         '時間': date,
@@ -81,48 +82,22 @@ def buildCollectData(rawDataList,subDir,dropNA = False):
     })
 
     if dropNA:
-        df['內容'].replace('',numpy.nan,inplace=True)
-        df.dropna(subset=['內容'],inplace=True)
+        df['內容'].replace('', numpy.nan, inplace=True)
+        df.dropna(subset=['內容'], inplace=True)
         df.reset_index(drop=True)
 
-    writer.pdToExcel(des=excel_file,df=df,sheetName="collection",autoFitIsNeed=False)
+    writer.pdToExcel(des=excel_file, df=df, sheetName="collection", autoFitIsNeed=False)
 
     print(f"{subDir}的文章統計資料寫入完成,導出分享id標記陣列")
     return feedback_id
 
 
 
-def buildDataParse(rawDataList,subDir,jsonArrayData):
+def buildDataParse(rawDataList, subDir, jsonArrayData) -> None:
 
-    # ------------------------Web driver settings-------------------------------------
-    options = webdriver.ChromeOptions()
-    # 避開彈跳視窗以免爬蟲被干擾
-    options.add_argument("--disable-notifications")
-    # 開啟無痕模式(有助於登入)
-    options.add_argument('--incognito')
-    # 開啟無頭模式,此模式下,會只執行瀏覽器的核心,而不開啟UI,可以順利在背景執行
-    options.add_argument("--headless")
-    options.add_argument("--window-size=1920,1080")
-    # 設定運行時的語系
-    options.add_argument("--lang=zh-tw")
-    # options.add_experimental_option('prefs', {'intl.accept_languages': 'en,en_US'})
-    # 屏蔽部分警告型log
-    options.add_experimental_option('useAutomationExtension', False)
-    options.add_experimental_option('excludeSwitches', ['enable-logging','enable-automation'])
-    # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chorme crash，所以要改成寫入到 /tmp
-    options.add_argument('--disable-dev-shm-usage')
-    # 以最高權限運行
-    options.add_argument('--no-sandbox')
-    options.add_argument("--disable-setuid-sandbox")
-
-    # google document 提到需要加上這個屬性來規避 bug
-    options.add_argument('--disable-gpu')
-    # 不加载图片, 提升速度(有操作截圖功能的話需要打開)
-    # options.add_argument('blink-settings=imagesEnabled=false')
-     # ------------------------Web driver settings-------------------------------------
-
+    account_num = int(os.environ.get("account_number_now"))
     excel_file = './output/' + subDir + '/dataParse.xlsx'
-    collectData_file = './output/' + subDir + '/collectData.xlsx'
+    collect_data_file = './output/' + subDir + '/collectData.xlsx'
     tag_file = './output/' + subDir + '/tag.xlsx'
     posts_id = []
     sharer_name = []
@@ -134,11 +109,11 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
     permalinks = []
 
     print(f"開始產生 {subDir} 的分享者統計資料")
-    for articleShareList in rawDataList:
-        if len(articleShareList) == 0 :
+    for article_share_list in rawDataList:
+        if len(article_share_list) == 0 :
             continue
         else :
-            for share_data in articleShareList:
+            for share_data in article_share_list:
 
                 # 所屬文章編號
                 posts_id.append(int(share_data["posts_count"]))
@@ -147,7 +122,7 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
                 sharer_name.append(share_data["sharer_name"])
 
                 # 分享時間
-                sharer_time.append((lambda input_time:time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(int(input_time))))(share_data["create_time"]))
+                sharer_time.append((lambda input_time:time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(input_time))))(share_data["create_time"]))
 
                 # 分享內容
                 if share_data["sharer_id"] != "" :
@@ -175,11 +150,12 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
                 if share_data["been_sharer_id"] == "":
                     been_sharer_name.append("")
                 else :
-                    tempName = share_data["been_sharer_raw_name"]
-                    startPoint = tempName.find(":")
-                    endPoint = tempName.find(".")
-                    tempName = tempName[startPoint+2:endPoint]
-                    been_sharer_name.append(tempName)
+                    temp_name = ""
+                    temp_name = share_data["been_sharer_raw_name"]
+                    startPoint = temp_name.find(":")
+                    endPoint = temp_name.find(".")
+                    temp_name = temp_name[startPoint+2:endPoint]
+                    been_sharer_name.append(temp_name)
             
     df = pd.DataFrame({
         "所屬文章編號":posts_id,
@@ -193,25 +169,25 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
     df = df.reset_index() #重新定義流水號
     df.drop('index', inplace=True, axis=1)
     df.insert(0,"粉專名稱",subDir)
-    writer.pdToExcel(des=excel_file,df=df,sheetName="sharerData")
+    writer.pdToExcel(des=excel_file, df=df, sheetName="sharerData")
 
 
     # 先記錄所有需要斷句斷詞的項目
 
-    article_dict = pd.read_excel(collectData_file,sheet_name="collection",usecols="C")
-    articleContents = article_dict['內容'].dropna().tolist()
+    article_dict = pd.read_excel(collect_data_file, sheet_name="collection", usecols="C")
+    article_contents = article_dict['內容'].dropna().tolist()
 
-    allContents = contents + articleContents
+    all_contents = contents + article_contents
 
-    tagRawDF = pd.DataFrame({
-        "未處理斷句":allContents
+    tag_raw_df = pd.DataFrame({
+        "未處理斷句":all_contents
     })
-    tagRawDF = tagRawDF.reset_index() #重新定義流水號
-    tagRawDF.drop('index', inplace=True, axis=1)
-    writer.pdToExcel(des=tag_file,df=tagRawDF,sheetName="rawSentences")
+    tag_raw_df = tag_raw_df.reset_index() #重新定義流水號
+    tag_raw_df.drop('index', inplace=True, axis=1)
+    writer.pdToExcel(des=tag_file, df=tag_raw_df, sheetName="rawSentences")
 
     # 建立熱詞表
-    buildTag(subDir=subDir)
+    buildTag(subDir)
 
     #**在有sharerData的情況下補救用**
     # df = pd.read_excel(excel_file,sheet_name="sharerData",usecols="B:H")
@@ -222,53 +198,51 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
     sharer_url = []
     sharer_profile_url = []
     for x in sharer_counter:
-        temp = df.loc[df['分享者名稱']== x,'分享者網址'].iloc[0]
+        temp = df.loc[df['分享者名稱']==x, '分享者網址'].iloc[0]
         sharer_url.append(temp)
     #透過userID 整理出分享者個人的頁面網址
     for url in sharer_url :
-        if url.find("profile") !=-1:
+        if url.find("profile") != -1:
             sharer_profile_url.append(url)
         else:
-            startIdx = url.find("/",url.find("user"))
-            endIdx = url.find("?")
-            concat = url[startIdx+1:endIdx]
-            newURL = "https://www.facebook.com/profile.php?id=" + concat
-            sharer_profile_url.append(newURL)
+            start_idx = url.find("/",url.find("user"))
+            end_idx = url.find("?")
+            concat = url[start_idx+1:end_idx]
+            new_url = "https://www.facebook.com/profile.php?id=" + concat
+            sharer_profile_url.append(new_url)
 
-    sharerDF = pd.DataFrame.from_dict(sharer_counter,orient='index').reset_index()
-    sharerDF['分享者連結'] = sharer_url
-    sharerDF['分享者個人頁面'] = sharer_profile_url
+    sharer_df = pd.DataFrame.from_dict(sharer_counter, orient='index').reset_index()
+    sharer_df['分享者連結'] = sharer_url
+    sharer_df['分享者個人頁面'] = sharer_profile_url
     try:
-        sharerDF.set_axis(['分享者','分享次數','分享者連結','分享者個人頁面'],axis=1,inplace=True)
+        sharer_df.set_axis(['分享者', '分享次數', '分享者連結', '分享者個人頁面'], axis=1, inplace=True)
     except:
-        sharerDF = pd.DataFrame({
+        sharer_df = pd.DataFrame({
             "分享者":[],
             "分享次數":[],
             "分享者連結":[],
             "分享者個人頁面":[]
         })
-    sharerDF = sharerDF.sort_values('分享次數',ascending=False)
-    sharerDF = sharerDF.reset_index()
-    del sharerDF['index']
-    sharerDF.insert(0,"粉專名稱",subDir)
+    sharer_df = sharer_df.sort_values('分享次數', ascending=False)
+    sharer_df = sharer_df.reset_index()
+    del sharer_df['index']
+    sharer_df.insert(0, "粉專名稱", subDir)
 
-    
     #------------------------------寫檔到sheet: sharer -------------------------------------
+    writer.pdToExcel(des=excel_file, df=sharer_df, sheetName="sharer", mode='a')
 
-    writer.pdToExcel(des=excel_file,df=sharerDF,sheetName="sharer",mode='a')
+
 
 
     #----------------------彙整好分享者統計資料後,抓取分享者的個人頁面截圖-------------------------
     try:
-        driver = None
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-        # 清掉暫存
-        driver.delete_all_cookies()
-
-        webDriver.login(driver=driver,accountCounter=0,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
+        screenshot_driver = webDriver.screenshotDriver(driver=None, options=None, isLogin=False)
+        screenshot_driver.setOptions(needHeadless=True, needImage=False)
+        screenshot_driver.driverInitialize()
+        screenshot_driver.login(account_num, jsonArrayData)
 
         count = 0
-        for s_url in sharerDF["分享者個人頁面"].tolist():
+        for s_url in sharer_df["分享者個人頁面"].tolist():
             if s_url == "":
                 continue
             else:
@@ -277,60 +251,56 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
                     break
                 else:
                     print("開始擷取分享者個人頁面的圖片,id : "+str(count))
-                    screenshotCrawler.CatchScreenshot(driver,s_url,count,0,subDir)
+                    screenshot_driver._getSource(s_url,count, 0, subDir)
                     count+=1
     finally:
-        driver.close()
-        driver.quit()
-        driver = None
+        screenshot_driver.clearDriver()
+
 
     #-----------------------產生被分享者統整資料,並寫到sheet: been_sharer --------------------------------------
 
-
     #已去掉被分享者的nan雜訊
-    beenSharer = df["被分享者名稱"].dropna().tolist()
-    beenSharer_counter = Counter(beenSharer)
-    beenSharer_url = []
-    for y in beenSharer_counter:
+    been_sharer = df["被分享者名稱"].dropna().tolist()
+    been_sharer_counter = Counter(been_sharer)
+    been_sharer_url = []
+    for y in been_sharer_counter:
         #遇到nan就跳過
         try:
-            temp1 = df.loc[df['被分享者名稱'] == y,'被分享者網址'].iloc[0]
-            beenSharer_url.append(temp1)
+            temp1 = df.loc[df['被分享者名稱']==y, '被分享者網址'].iloc[0]
+            been_sharer_url.append(temp1)
         except:
             continue
 
-    beenSharerDF = pd.DataFrame.from_dict(beenSharer_counter,orient='index').reset_index()
-    beenSharerDF['社團/粉專連結'] = beenSharer_url
+    been_sharer_df = pd.DataFrame.from_dict(been_sharer_counter, orient='index').reset_index()
+    been_sharer_df['社團/粉專連結'] = been_sharer_url
     try:
-        beenSharerDF.set_axis(['被分享者','被分享次數','社團/粉專連結'],axis=1,inplace=True)
+        been_sharer_df.set_axis(['被分享者', '被分享次數', '社團/粉專連結'], axis=1, inplace=True)
     except:
-        beenSharerDF = pd.DataFrame({
+        been_sharer_df = pd.DataFrame({
             "被分享者":[],
             "被分享次數":[],
             "社團/粉專連結":[]
         })
-    beenSharerDF = beenSharerDF.sort_values('被分享次數',ascending=False)
-    beenSharerDF = beenSharerDF.reset_index()
-    del beenSharerDF['index']
-    beenSharerDF.insert(0,"粉專名稱",subDir)
+    been_sharer_df = been_sharer_df.sort_values('被分享次數', ascending=False)
+    been_sharer_df = been_sharer_df.reset_index()
+    del been_sharer_df['index']
+    been_sharer_df.insert(0, "粉專名稱", subDir)
 
-    #------------------------------寫檔到sheet: been_sharer -------------------------------------
+    #------------------------------寫檔到sheet: been_sharer-------------------------------------
+    writer.pdToExcel(des=excel_file, df=been_sharer_df, sheetName="been_sharer", mode='a')
 
-    writer.pdToExcel(des=excel_file,df=beenSharerDF,sheetName="been_sharer",mode='a')
+
 
 
     #---------------------------彙整好被分享者統計資料後,抓取社團/粉專連結頁面截圖-------------------------------
-
     try:
-        driver = None
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-        # 清掉暫存
-        driver.delete_all_cookies()
-
-        webDriver.login(driver=driver,accountCounter=0,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
+        screenshot_driver = webDriver.screenshotDriver(driver=None, options=None, isLogin=False)
+        screenshot_driver.setOptions(needHeadless=True, needImage=False)
+        screenshot_driver.driverInitialize()
+        screenshot_driver.login(account_num, jsonArrayData)
 
         count = 0
-        for s_url in beenSharerDF["社團/粉專連結"].tolist():
+        for s_url in been_sharer_df["社團/粉專連結"].tolist():
             if s_url == "":
                 continue
             else:
@@ -338,72 +308,71 @@ def buildDataParse(rawDataList,subDir,jsonArrayData):
                     time.sleep(random.randint(2,3))
                     break
                 else:
-                    print("開始擷取社團/粉專連結頁面的圖片,id : "+str(count))
-                    screenshotCrawler.CatchScreenshot(driver,s_url,count,1,subDir)
+                    print("開始擷取社團/粉專連結頁面的圖片,id : " + str(count))
+                    screenshot_driver._getSource(s_url, count, 1, subDir)
                     count+=1
     finally:
-        driver.close()
-        driver.quit()
-        driver = None
+        screenshot_driver.clearDriver()
+
     print("批次資料整理完畢")
 
 
 
-def buildTag(subDir):
+def buildTag(subDir) -> None:
     #建立一個Counter 物件,準備統計各分享者內容中的tag標籤
     tag_file = f"./output/{subDir}/tag.xlsx"
-    sentenceCounter = Counter()
-    specialChars = r"[!|#|~|,|。|，|？|！|：|;|；|』|『|」|「|“|、|”|】|【|／]" 
+    sentence_counter = Counter()
+    special_chars = r"[!|#|~|,|。|，|？|！|：|;|；|』|『|」|「|“|、|”|】|【|／]" 
     #讀取相關的欄位
-    data = pd.read_excel(tag_file,sheet_name="rawSentences",usecols="B")
-    rawTagList = data["未處理斷句"].dropna().tolist()
+    data = pd.read_excel(tag_file, sheet_name="rawSentences", usecols="B")
+    raw_tag_list = data["未處理斷句"].dropna().tolist()
 
-    for rawData in rawTagList:
-        temp = re.sub(specialChars," ",rawData)
-        temp = add_space_between_emojies(temp)
+    for raw_data in raw_tag_list:
+        temp = re.sub(special_chars, " ", raw_data)
+        temp = addSpaceBetweenEmojies(temp)
         temp = temp.strip()
-        splitTemp = re.split(r'[\s|\r\n]+',temp)
-        splitTemp = [splitStr for splitStr in splitTemp if Auxiliary.detectURL(splitStr)]     
-        sentenceCounter.update(splitTemp)
+        split_temp = re.split(r'[\s|\r\n]+', temp)
+        split_temp = [split_str for split_str in split_temp if Auxiliary.detectURL(split_str)]     
+        sentence_counter.update(split_temp)
 
-    if len(sentenceCounter) != 0 :
+    if len(sentence_counter) != 0 :
         #建立儲存tag頻率的xlsx表
-        tagListDF = pd.DataFrame.from_dict(sentenceCounter,orient='index').reset_index()
-        tagListDF = tagListDF.set_axis(['斷句','使用熱度'],axis=1)
-        tagListDF = tagListDF.sort_values('使用熱度',ascending=False)
-        writer.pdToExcel(des=tag_file,df=tagListDF,sheetName="sentence",indexIsNeed=False,mode='a')
+        tagList_df = pd.DataFrame.from_dict(sentence_counter, orient='index').reset_index()
+        tagList_df = tagList_df.set_axis(['斷句','使用熱度'], axis=1)
+        tagList_df = tagList_df.sort_values('使用熱度', ascending=False)
+        writer.pdToExcel(des=tag_file, df=tagList_df, sheetName="sentence", indexIsNeed=False, mode='a')
     else :
-        emptyDF = pd.DataFrame(columns=['斷句','使用熱度'])
-        writer.pdToExcel(des=tag_file,df=emptyDF,sheetName="sentence",indexIsNeed=False,mode='a')
+        empty_df = pd.DataFrame(columns=['斷句', '使用熱度'])
+        writer.pdToExcel(des=tag_file, df=empty_df, sheetName="sentence", indexIsNeed=False, mode='a')
 
-    wordCounter = Counter()
+    word_counter = Counter()
     jieba.load_userdict("./config/jieba/dict.txt.big.txt")
     # jieba.load_userdict("./config/jieba/dict_extends.txt")
-    with open('./config/jieba/stop_words.txt',encoding="utf_8") as f:
-        stopWords = [line.strip() for line in f.readlines()]
-    for key in sentenceCounter :
-        parseList = jieba.lcut(key,cut_all=False)
-        parseList = [w for w in parseList if len(w)>1 and not re.match('^[a-z|A-Z|0-9|.]*$',w)]
-        parseList = [w for w in parseList if w not in stopWords]
-        for i in range(1,int(sentenceCounter[key]+1)):
-            wordCounter.update(parseList)
-    wordListDF = pd.DataFrame.from_dict(wordCounter,orient='index').reset_index()
+    with open('./config/jieba/stop_words.txt', encoding="utf_8") as f:
+        stop_words = [line.strip() for line in f.readlines()]
+    for key in sentence_counter :
+        parse_list = jieba.lcut(key, cut_all=False)
+        parse_list = [w for w in parse_list if len(w)>1 and not re.match('^[a-z|A-Z|0-9|.]*$', w)]
+        parse_list = [w for w in parse_list if w not in stop_words]
+        for i in range(1, int(sentence_counter[key]+1)):
+            word_counter.update(parse_list)
+    word_list_df = pd.DataFrame.from_dict(word_counter, orient='index').reset_index()
     try:
-        wordListDF.set_axis(['斷詞','詞頻'],axis=1,inplace=True)
+        word_list_df.set_axis(['斷詞', '詞頻'], axis=1, inplace=True)
     except:
-        wordListDF = pd.DataFrame({
+        word_list_df = pd.DataFrame({
             "斷詞":[],
             "詞頻":[]
         })
-    wordListDF = wordListDF.sort_values('詞頻',ascending=False)
-    writer.pdToExcel(des=tag_file,df=wordListDF,sheetName="word",indexIsNeed=False,mode='a')
+    word_list_df = word_list_df.sort_values('詞頻', ascending=False)
+    writer.pdToExcel(des=tag_file, df=word_list_df, sheetName="word", indexIsNeed=False, mode='a')
 
     print("斷詞表建置完成")
-    createWordCloud(subDir=subDir,counter=wordCounter)
+    createWordCloud(subDir=subDir, counter=word_counter)
 
 
 
-def add_space_between_emojies(text):
+def addSpaceBetweenEmojies(text) -> str:
   # Ref: https://gist.github.com/Alex-Just/e86110836f3f93fe7932290526529cd1#gistcomment-3208085
   # Ref: https://en.wikipedia.org/wiki/Unicode_block
   EMOJI_PATTERN = re.compile(
@@ -425,9 +394,9 @@ def add_space_between_emojies(text):
   return text
 
 
-def createWordCloud(subDir,counter,for_all = False):
+def createWordCloud(subDir, counter, forAll = False) -> None:
     file_path = f"./output/{subDir}/img/word_cloud/word_cloud.png"
-    if for_all:
+    if forAll:
         file_path = "./output/all_word_cloud.png"
     font_path = f"./config/word_cloud/標楷體.ttc"
     mask_path = f"./config/word_cloud/organza_asstapas.png"
@@ -460,7 +429,7 @@ def createWordCloud(subDir,counter,for_all = False):
 
 
 
-def buildAboutData(AboutDataList,subDir,targetURL):
+def buildAboutData(AboutDataList, subDir, targetURL) -> None:
     excel_file = './output/' + subDir + '/aboutData.xlsx'
 
     sheet_adjust_name = subDir.replace(" ","_")
@@ -637,34 +606,33 @@ def buildAboutData(AboutDataList,subDir,targetURL):
         }
     }
 
-    buildAssociation(excel_file=excel_file,basicDF=basicDF,association_map=association_map)
+    buildAssociation(excelFile=excel_file, basicDF=basicDF, association_map=association_map)
 
-def buildAssociation(excel_file,basicDF,association_map):
+def buildAssociation(excelFile,basicDF,association_map) -> None:
     for key,value in association_map.items():
         if value['length'] == 0:
-            basicDF.insert(len(basicDF.columns),key,"")
+            basicDF.insert(len(basicDF.columns), key, "")
         else:
-            funcStr = Auxiliary.make_hyperlink(value['name'],"連結")
-            basicDF.insert(loc=len(basicDF.columns),column=key,value=[funcStr])
+            funcStr = Auxiliary.makeHyperlink(value['name'],"連結")
+            basicDF.insert(loc=len(basicDF.columns), column=key, value=[funcStr])
             # basicDF[key] = [funcStr]
     
-    writer.pdToExcel(des=excel_file,df=basicDF,sheetName="about",mode='a')
+    writer.pdToExcel(des=excelFile, df=basicDF, sheetName="about", mode='a')
 
+def buildFriendzoneData(FriendzoneDataList, subDir, targetURL) -> None:
 
-def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
     excel_file = './output/' + subDir + '/friendzoneData.xlsx'
-
-    nameList = []
-    genderList = []
-    birthdayList = []
-    phoneList = []
-    emailList = []
-    addressList = []
-    workList = []
-    workDateList = []
-    profileList = []
-    associateNameList = []
-    associateURLList = []
+    name_list = []
+    gender_list = []
+    birthday_list = []
+    phone_list = []
+    email_list = []
+    address_list = []
+    work_list = []
+    work_date_list = []
+    profile_list = []
+    associate_name_list = []
+    associate_url_list = []
 
     for data in FriendzoneDataList:
          # 處理學經歷資料
@@ -677,9 +645,9 @@ def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
         experience_name_list+=(experience_dict['work']['name'])
 
         # 字串處理
-        for i in range(0,len(experience_name_list)):
+        for i in range(0, len(experience_name_list)):
             startIndex = experience_name_list[i].find("at")
-            if startIndex== -1:
+            if startIndex == -1:
                 startIndex = experience_name_list[i].find("to")
             if startIndex == -1:
                 experience_name_list[i] = experience_name_list[i]
@@ -688,20 +656,20 @@ def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
                 
         
         experience_date_list+=(experience_dict['work']['date'])
-        if len(experience_name_list)!=0:
-            workList.append(experience_name_list[0])
+        if len(experience_name_list) != 0:
+            work_list.append(experience_name_list[0])
         else:
-            workList.append("")
-        if len(experience_date_list)!=0:
-            workDateList.append(experience_date_list[0])
+            work_list.append("")
+        if len(experience_date_list) != 0:
+            work_date_list.append(experience_date_list[0])
         else :
-            workDateList.append("")
+            work_date_list.append("")
         
         address_dict = data[2]
-        if len(address_dict['live']['name'])!=0:
-            addressList.append(address_dict['live']['name'][0])
+        if len(address_dict['live']['name']) != 0:
+            address_list.append(address_dict['live']['name'][0])
         else:
-            addressList.append("")
+            address_list.append("")
         
 
         basic_dict = data[3]
@@ -710,43 +678,43 @@ def buildFriendzoneData(FriendzoneDataList,subDir,targetURL):
         if basic_dict['birthday_year']!="":
             birthday = basic_dict['birthday_year'] + " " + birthday 
 
-        birthdayList.append(str(birthday))
-        genderList.append(basic_dict["gender"])
-        phoneList.append(basic_dict['phone'])
-        emailList.append(basic_dict['email'])
+        birthday_list.append(str(birthday))
+        gender_list.append(basic_dict["gender"])
+        phone_list.append(basic_dict['phone'])
+        email_list.append(basic_dict['email'])
 
 
         profile_dict = data[5]
 
-        nameList.append(profile_dict['name'])
-        profileList.append(profile_dict['url'])
-        associateNameList.append(subDir)
-        associateURLList.append(targetURL)
+        name_list.append(profile_dict['name'])
+        profile_list.append(profile_dict['url'])
+        associate_name_list.append(subDir)
+        associate_url_list.append(targetURL)
 
-    # print(f"nameList lens: {len(nameList)},contents : {nameList}")
-    # print(f"genderList lens: {len(genderList)},contents : {genderList}")
-    # print(f"birthdayList lens: {len(birthdayList)},contents : {birthdayList}")
-    # print(f"phoneList lens: {len(phoneList)},contents : {phoneList}")
-    # print(f"emailList lens: {len(emailList)},contents : {emailList}")
-    # print(f"addressList lens: {len(addressList)},contents : {addressList}")
-    # print(f"workList lens: {len(workList)},contents : {workList}")
-    # print(f"workDateList lens: {len(workDateList)},contents : {workDateList}")
-    # print(f"profileList lens: {len(profileList)},contents : {profileList}")
+    # print(f"name_list lens: {len(name_list)},contents : {name_list}")
+    # print(f"gender_list lens: {len(gender_list)},contents : {gender_list}")
+    # print(f"birthday_list lens: {len(birthday_list)},contents : {birthday_list}")
+    # print(f"phone_list lens: {len(phone_list)},contents : {phone_list}")
+    # print(f"email_list lens: {len(email_list)},contents : {email_list}")
+    # print(f"address_list lens: {len(address_list)},contents : {address_list}")
+    # print(f"work_list lens: {len(work_list)},contents : {work_list}")
+    # print(f"work_date_list lens: {len(work_date_list)},contents : {work_date_list}")
+    # print(f"profile_list lens: {len(profile_list)},contents : {profile_list}")
 
     df = pd.DataFrame({
-        "關係人姓名":associateNameList,
-        "關係人個人頁連結":associateURLList,
-        "姓名":nameList,
-        "性別":genderList,
-        "生日":birthdayList,
-        "手機":phoneList,
-        "信箱":emailList,
-        "住址":addressList,
-        "工作":workList,
-        "工作起訖時間":workDateList,
-        "連結":profileList
+        "關係人姓名":associate_name_list,
+        "關係人個人頁連結":associate_url_list,
+        "姓名":name_list,
+        "性別":gender_list,
+        "生日":birthday_list,
+        "手機":phone_list,
+        "信箱":email_list,
+        "住址":address_list,
+        "工作":work_list,
+        "工作起訖時間":work_date_list,
+        "連結":profile_list
     })
 
     df = df.reset_index() #重新定義流水號
     df.drop('index', inplace=True, axis=1)
-    writer.pdToExcel(des=excel_file,df=df,sheetName="sheet1")
+    writer.pdToExcel(des=excel_file, df=df, sheetName="sheet1")

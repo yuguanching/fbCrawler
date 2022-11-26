@@ -10,6 +10,8 @@ import random
 import os 
 import traceback
 
+from typing import Union
+from queue import Queue
 from numpy import append
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -23,37 +25,45 @@ from requests.exceptions import ProxyError,ConnectTimeout,SSLError,ConnectionErr
 from http.client import HTTPConnection
 
 
-def __get_headers__(pageurl):
+def __getHeaders__(pageurl) -> dict:
     '''
     Send a request to get cookieid as headers.
     '''
     fake_user_agent = UserAgent()
-    pageurl = re.sub('www', 'm', pageurl)
-    resp = requests.get(pageurl)
+    # pageurl = re.sub('www', 'm', pageurl)
+    # resp = requests.get(pageurl)
+    # headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[cookieid]) for cookieid in resp.cookies.get_dict()])
+    # resp.close()
     headers={'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
              'accept-language': 'en'}
-    headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[cookieid]) for cookieid in resp.cookies.get_dict()])
     headers['ec-ch-ua-platform'] = 'Windows'
     headers['user-agent'] = fake_user_agent.chrome
     headers['sec-fetch-site'] = "same-origin"
     # headers['Connection'] = 'close'
     # headers['cookie'] = headers['cookie'] + '; locale=en_US'
-    resp.close()
     return headers
 
 
-def __get_friendzone_nov_section__(pageurl,accountNumber,jsonArrayData):
+def __getFriendzoneNovSection__(pageURL, customDriver :webDriver.friendzoneDriver) -> tuple[str, str, str, bool]:
     
     print("以selenium的爬蟲登入法取得userid、docid")
-    userid = ''
-    resp = webDriver.catchSectionFriendzoneSource(pageURL=pageurl,accountNumber=accountNumber,jsonArrayData=jsonArrayData)
-    writer.writeTempFile(filename="sourceCode_friendzone",content=resp) 
+    is_been_banned = False
+    # userid = ''
+    resp = customDriver._getSource(pageURL=pageURL)
+    if resp == "":
+        return "", "", "", is_been_banned
 
-    # userID
-    if len(re.findall('"userID":"([0-9]{1,})",', resp)) >= 1:
-        userid = re.findall('"userID":"([0-9]{1,})",', resp)[0]
-    else:
-        userid = ''
+    if ("目前無法查看此內容" in resp) and ("empty_states_icons" in resp):
+        is_been_banned = True
+        return "", "", "", is_been_banned
+        
+    # writer.writeTempFile(filename="sourceCode_friendzone",content=resp) 
+
+    # # userID
+    # if len(re.findall('"userID":"([0-9]{1,})",', resp)) >= 1:
+    #     userid = re.findall('"userID":"([0-9]{1,})",', resp)[0]
+    # else:
+    #     userid = ''
 
     if len(re.findall('"tab_key":"friends_all","id":"(.*?)"',resp)) >=1 :
         friendzone_id = re.findall('"tab_key":"friends_all","id":"(.*?)"',resp)[0]
@@ -69,25 +79,28 @@ def __get_friendzone_nov_section__(pageurl,accountNumber,jsonArrayData):
             continue
         else:
             # resp_href = requests.get(js.get('src'))
-            resp_href = webDriver.catchspecialJS(js.get('src'))
+            resp_href = customDriver.catchSpecialJsSource(pageURL=js.get('src'))
             for line in resp_href.split('\n', -1):
                 if 'ProfileCometAppCollectionListRendererPaginationQuery_' in line:
                     docid = re.findall('e.exports="([0-9]{1,})"', line)[0]
                     req_name = 'ProfileCometAppCollectionListRendererPaginationQuery'
                     break
-
+    # print('userid is: {}'.format(userid))
     print('friendzoneid is {}'.format(friendzone_id))
-    print('userid is: {}'.format(userid))
     print('docid is: {}'.format(docid))
     print(f"req_name is: {req_name}")
-    return friendzone_id, userid, docid, req_name
+    return friendzone_id, docid, req_name, is_been_banned
 
 
-def __get_userid_section__(pageurl,accountNumber,jsonArrayData):
+def __getUserIDSection__(pageURL, customDriver :webDriver.postsDriver):
     
     print("以selenium的爬蟲登入法取得userid、docid")
+    is_been_banned = False
     userid = ''
-    resp = webDriver.getPageSource(pageURL=pageurl,accountNumber=accountNumber,jsonArrayData=jsonArrayData)
+    resp = customDriver._getSource(pageURL=pageURL)
+    if ("目前無法查看此內容" in resp) and ("empty_states_icons" in resp):
+        is_been_banned = True
+        return "", "", "", is_been_banned
     # userID
     if len(re.findall('"userID":"([0-9]{1,})",', resp)) >= 1:
         userid = re.findall('"userID":"([0-9]{1,})",', resp)[0]
@@ -110,16 +123,21 @@ def __get_userid_section__(pageurl,accountNumber,jsonArrayData):
     print('docid is: {}'.format(docid))
     print(f"req_name is: {req_name}")
     resp_href.close()
-    return userid, docid, req_name
+    return userid, docid, req_name, is_been_banned
 
 
-def __get_pageid_feedback__(pageurl,accountNumber,jsonArrayData):
+def __getDocIDFeedback__(pageURL, customDriver :webDriver.feedbackDriver) -> tuple[str, str, str, bool]:
 
     # *部分粉專有鎖年齡與國家,導致只能登入後才能瀏覽,故改用爬蟲登入法取得頁面資料
     print("以selenium的爬蟲登入法取得feedback 的 docid")
-    source = webDriver.catchFeedbackDynamicSource(pageurl,accountNumber,jsonArrayData=jsonArrayData)
+    is_been_banned = False
+    resp = customDriver._getSource(pageURL=pageURL)
+
+    if ("目前無法查看此內容" in resp) and ("empty_states_icons" in resp):
+        is_been_banned = True
+        return "", "", "", is_been_banned
     # feedbackid
-    soup = BeautifulSoup(source, 'lxml')
+    soup = BeautifulSoup(resp, 'lxml')
     docid = ""
     req_name = ""
     for js in soup.findAll('link', {'rel': 'preload'}):
@@ -140,42 +158,43 @@ def __get_pageid_feedback__(pageurl,accountNumber,jsonArrayData):
             else :
                 continue
         resp.close()
-        if req_name=="CometResharesFeedPaginationQuery":
+        if req_name == "CometResharesFeedPaginationQuery":
             break
     print(f'feedback docid is: {docid}, req_name is: {req_name}')
-    return docid, req_name
+    return "", docid, req_name, is_been_banned
 
 
     
 
-def __get_pageid__(pageurl,accountNumber,jsonArrayData):
+def __getPageID__(pageURL, customDriver :webDriver.postsDriver) -> tuple[str, str, str, bool]:
     
     pageid = ''
+    is_been_banned = False
+    pageURL = re.sub('/$', '', pageURL)
 
-    pageurl = re.sub('/$', '', pageurl)
-    headers = __get_headers__(pageurl)
-    time.sleep(1)
-
-    resp = requests.get(pageurl, headers)
+    resp = requests.get(pageURL)
     resp = resp.text
     # *部分粉專有鎖年齡與國家,導致只能登入後才能瀏覽,故改用爬蟲登入法取得頁面資料
     if "pageID" not in resp:
         print("以selenium的爬蟲登入法取得pageid、docid")
-        resp = webDriver.getPageSource(pageURL=pageurl,accountNumber=accountNumber,jsonArrayData=jsonArrayData)
-    writer.writeTempFile(filename="sourceCode",content=resp) 
+        resp = customDriver._getSource(pageURL=pageURL)
+    writer.writeTempFile(filename="sourceCode", content=resp) 
+    if ("目前無法查看此內容" in resp) and ("empty_states_icons" in resp):
+        is_been_banned = True
+        return "", "", "", is_been_banned
 
     # pageID
     if len(re.findall('"pageID":"([0-9]{1,})",', resp)) >= 1:
         pageid = re.findall('"pageID":"([0-9]{1,})",', resp)[0]
     elif len(re.findall(r'"identifier":(.*?),', resp)) >= 1:
         pageid = re.findall(r'"identifier":(.*?),', resp)[0]
-    elif len(re.findall(r'https://www.facebook.com/profile.php\?id=([0-9]{1,}).*"',resp)) >= 1:
-        pageid = re.findall(r'https://www.facebook.com/profile.php\?id=([0-9]{1,}).*"',resp)[0]
-    elif len(re.findall(r'https:\\/\\/www.facebook.com\\/profile.php\?id=([0-9]{1,}).*"',resp)) >= 1:
-        pageid = re.findall(r'https:\\/\\/www.facebook.com\\/profile.php\?id=([0-9]{1,}).*"',resp)[0]
+    elif len(re.findall(r'https://www.facebook.com/profile.php\?id=([0-9]{1,}).*"', resp)) >= 1:
+        pageid = re.findall(r'https://www.facebook.com/profile.php\?id=([0-9]{1,}).*"', resp)[0]
+    elif len(re.findall(r'https:\\/\\/www.facebook.com\\/profile.php\?id=([0-9]{1,}).*"', resp)) >= 1:
+        pageid = re.findall(r'https:\\/\\/www.facebook.com\\/profile.php\?id=([0-9]{1,}).*"', resp)[0]
     elif len(re.findall('fb://group|page|profile/([0-9]{1,})', resp)) >= 1:
         pageid = re.findall('fb://group|page|profile/([0-9]{1,})', resp)[0]
-    elif len(re.findall('delegate_page":\{"id":"(.*?)"\},',resp)) >= 1:
+    elif len(re.findall('delegate_page":\{"id":"(.*?)"\},', resp)) >= 1:
         pageid = re.findall('delegate_page":\{"id":"(.*?)"\},', resp)[0]
     else:
         pageid = ''
@@ -213,27 +232,27 @@ def __get_pageid__(pageurl,accountNumber,jsonArrayData):
     print('pageid is: {}'.format(pageid))
     print('docid is: {}'.format(docid))
     print(f"req_name is: {req_name}")
-    return pageid, docid, req_name
+    return pageid, docid, req_name, is_been_banned
 
 
-def __parsing_friendzone_nov__(resp):
+def __parsingFriendzoneNov__(resp: requests.Response) -> tuple[list, str]:
     edge_list = []
-    writer.writeTempFile(filename="sourceCode_friendzone_edge",content=resp.text) 
+    writer.writeTempFile(filename="sourceCode_friendzone_edge", content=resp.text) 
     resp = json.loads(resp.text.split('\r\n', -1)[0])
-    tempCursor = ""
+    temp_cursor = ""
 
     for edge in resp['data']['node']['pageItems']['edges']:
         try:
-            edge = rawDataResolve.__resolver_friendzone_edge__(edge)
-            tempCursor = edge["cursor"]
+            edge = rawDataResolve.__resolverEdgesFriendzone__(edge)
+            temp_cursor = edge["cursor"]
             edge_list.append(edge)
         except Exception as e:
             print(traceback.format_exc())
             continue
-    cursor = tempCursor
+    cursor = temp_cursor
     return edge_list, cursor
 
-def __parsing_SectionAbout__(resp,aboutNumber):
+def __parsingSectionAbout__(resp: requests.Response, aboutNumber) -> list:
     edge_list = []
     resps = resp.text.split('\r\n', -1)
     # writer.writeTempFile(filename="sourceCode_section_edge",content=resp.text) 
@@ -241,7 +260,7 @@ def __parsing_SectionAbout__(resp,aboutNumber):
     for i, res in enumerate(resps):
         try:
             check =  json.loads(res)['data']['user']['about_app_sections']['nodes']      
-            res_dict = rawDataResolve.__resolver_SectionAbout_edge__(check[0],aboutNumber=aboutNumber)
+            res_dict = rawDataResolve.__resolverEdgesSectionAbout__(check[0], aboutNumber=aboutNumber)
             edge_list.append(res_dict)
         except Exception as e:
             continue
@@ -249,25 +268,25 @@ def __parsing_SectionAbout__(resp,aboutNumber):
         raise UnboundLocalError("沒有取到關於的內容,重試")
     return edge_list
 
-def __parsing_ProfileComet__(resp,jsonArrayData):
+def __parsingProfileComet__(resp: requests.Response, jsonArrayData) -> tuple[list, str, bool, bool]:
     edge_list = []
     resps = resp.text.split('\r\n', -1)
-    tempCursor = ""
-    isUpToTime = True
-    arriveFirstCatchTime = False
+    temp_cursor = ""
+    is_up_to_time = True
+    arrive_first_catch_time = False
     for i, res in enumerate(resps):
         check =  json.loads(res)['data']
         try:
             if len( check['node']['timeline_list_feed_units']['edges']) == 0:
-                return [],"",isUpToTime
+                return [], "", is_up_to_time, arrive_first_catch_time
             else:
                 for edge in check['node']['timeline_list_feed_units']['edges']:
                     try:
-                        edge = rawDataResolve.__resolver_edge__(edge)
-                        tempCursor = edge["cursor"]
+                        edge = rawDataResolve.__resolverEdgesPage__(edge)
+                        temp_cursor = edge["cursor"]
                         if edge["creation_time"] != 0 :
-                            isUpToTime,arriveFirstCatchTime = Auxiliary.dateCompare(edge["creation_time"],userSettingTime=jsonArrayData)
-                            if isUpToTime : 
+                            is_up_to_time, arrive_first_catch_time = Auxiliary.dateCompare(edge["creation_time"], userSettingTime=jsonArrayData)
+                            if is_up_to_time : 
                                 edge_list.append(edge)
                     except Exception as e:
                         print(traceback.format_exc())
@@ -276,31 +295,32 @@ def __parsing_ProfileComet__(resp,jsonArrayData):
             # print(traceback.format_exc())
             # print("other label data, abort")
             continue
-    cursor = tempCursor # DANGEROUS
-    return edge_list, cursor, isUpToTime, arriveFirstCatchTime
+    cursor = temp_cursor # DANGEROUS
+    return edge_list, cursor, is_up_to_time, arrive_first_catch_time
 
-def __parsing_CometModern__(resp,jsonArrayData):
+def __parsingCometModern__(resp: requests.Response, jsonArrayData) -> tuple[list, str, bool, bool]:
     edge_list = []
     resp = json.loads(resp.text.split('\r\n', -1)[0])
-    tempCursor = ""
-    isUpToTime = True
-    arriveFirstCatchTime = False
+    temp_cursor = ""
+    is_up_to_time = True
+    arrive_first_catch_time = False
     for edge in resp['data']['node']['timeline_feed_units']['edges']:
         try:
-            edge = rawDataResolve.__resolver_edge__(edge)
-            tempCursor = edge["cursor"]
-            isUpToTime, arriveFirstCatchTime = Auxiliary.dateCompare(edge["creation_time"],userSettingTime=jsonArrayData)
-            if isUpToTime : 
+            edge = rawDataResolve.__resolverEdgesPage__(edge)
+            temp_cursor = edge["cursor"]
+            is_up_to_time, arrive_first_catch_time = Auxiliary.dateCompare(edge["creation_time"], userSettingTime=jsonArrayData)
+            if is_up_to_time : 
                 edge_list.append(edge)
         except Exception as e:
             print(traceback.format_exc())
             continue
-    cursor = tempCursor # DANGEROUS
-    return edge_list, cursor, isUpToTime, arriveFirstCatchTime
+    cursor = temp_cursor # DANGEROUS
+    return edge_list, cursor, is_up_to_time, arrive_first_catch_time
 
-def __parsing_Feedback__(resp,posts_count):
+def __parsingFeedback__(resp: requests.Response, posts_count) -> tuple[list, str]:
     edge_list = []
     resp = json.loads(resp.text.split('\r\n', -1)[0])
+    temp_cursor = ""
 
     # 這段邏輯未來可能判斷上會用到,相關性:沒正常抓到分享者資料時
     # if "reshares" not in resp['data']['node']:
@@ -313,24 +333,25 @@ def __parsing_Feedback__(resp,posts_count):
         
     for edge in resp['data']['node']['reshares']['edges']:
         try:
-            edge = rawDataResolve.resolver_edges_feedback(edge,posts_count)
+            edge = rawDataResolve.__resolverEdgesFeedback__(edge, posts_count)
+            temp_cursor = edge["cursor"]
             edge_list.append(edge)
         except Exception as e:
             print(traceback.format_exc())
             continue
         
-    cursor = edge_list[-1]["cursor"] # DANGEROUS
+    cursor = temp_cursor # DANGEROUS
     return edge_list, cursor
 
 
 
-def has_next_page(resp):
+def hasNextPage(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
 
     if 'timeline_feed_units' in  resp['data']['node']:
         has_next_page = resp['data']['node']['timeline_feed_units']['page_info']['has_next_page']
     elif 'timeline_list_feed_units' in resp['data']['node']:
-        if len(resp['data']['node']['timeline_list_feed_units']['edges'])==0:
+        if len(resp['data']['node']['timeline_list_feed_units']['edges']) == 0:
             has_next_page = False
         else:
             has_next_page = True
@@ -340,7 +361,7 @@ def has_next_page(resp):
     return has_next_page
 
 
-def has_next_page_feedback(resp):
+def hasNextPageFeedback(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
     if resp['data']['node']['reshares']:
         has_next_page = resp['data']['node']['reshares']['page_info']['has_next_page']
@@ -350,7 +371,7 @@ def has_next_page_feedback(resp):
     return has_next_page
 
 
-def has_next_page_friendzone(resp):
+def hasNextPageFriendzone(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
     if 'pageItems' in resp['data']['node']:
         has_next_page = resp['data']['node']['pageItems']['page_info']['has_next_page']
@@ -359,36 +380,15 @@ def has_next_page_friendzone(resp):
 
     return has_next_page
 
-def Crawl_PagePosts(pageurl,jsonArrayData,proxy_ip_list, process_num, targetName):
+def crawlPagePosts(pageURL, pageID, docID, reqName, jsonArrayData, proxyIpList, processNum, targetName) -> list:
 
-    tryCount = 0
-    proxyCount = 0
-    proxyIPList = proxy_ip_list
-    randomProxyIP ="http://" + proxyIPList[proxyCount]
+    try_count = 0
+    proxy_count = 0
+    proxy_ip_list = proxyIpList
+    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
     contents = []
     cursor = ''
-    headers = __get_headers__(pageurl)
-    # Get pageid, postid and reqname
-
-    accountsLen = len(jsonArrayData['user']['account'])
-    account_num = os.environ.get("account_number_now")
-    if account_num is None:
-        account_num = random.randint(0,accountsLen-1)
-    else: 
-        account_num = int(account_num)
-    while True:
-        pageid, docid, req_name = __get_pageid__(pageurl=pageurl,accountNumber=account_num,jsonArrayData=jsonArrayData)
-        if docid != "":
-            os.environ['account_number_now'] = str(account_num)
-            break
-        else:
-            print("未能取得文章的docid,嘗試換其他帳號試試")
-            account_num+=1
-            if account_num==accountsLen:
-                account_num = 0
-            os.environ['account_number_now'] = str(account_num)
-            continue
-
+    headers = __getHeaders__(pageURL)
 
     session = requests.session()
     # 設定失敗重試策略
@@ -402,41 +402,39 @@ def Crawl_PagePosts(pageurl,jsonArrayData,proxy_ip_list, process_num, targetName
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
-    # # test
-    # cursor = "AQHRvxZQu9-qubSB88HSiqoDq8XZh7czCjVQ__BKOSVKgR92RY-jYDigMBLRru8feLGQKVQ0oUluDuypfAYKGvQOhtylFy4RYowx0GQXak6CkEYl7lyj_ZahYl6s4syqOawH"
-    # pageid = "100002814720095"
-    # docid = "5511844245541805"
-
-    isUpToTime = True
+    is_up_to_time = True
     while True:
-        print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
+        print(f"行程{processNum}-> {targetName}:當前的標記 : {cursor}")
         data = {'variables': str({  "stream_count": "5",
                                     "cursor": cursor,
-                                    "id": pageid,
+                                    "id": pageID,
                                     "scale":"1",
                                     "privacySelectorRenderLocation":"COMET_STREAM",
                                     "__relay_internal__pv__FBReelsEnableDeferrelayprovider":"false"}),
-                    'doc_id': docid}
+                    'doc_id': docID}
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                  data=data,
-                                 headers=headers,timeout=20,verify="./config/certs.pem",proxies={'http': randomProxyIP,"https":randomProxyIP})
-            if req_name == 'ProfileCometTimelineFeedRefetchQuery':
-                edge_list, cursor_now,isUpToTime, arriveFirstCatchTime = __parsing_ProfileComet__(resp,jsonArrayData)
-            elif req_name == 'CometModernPageFeedPaginationQuery':
-                edge_list, cursor_now,isUpToTime, arriveFirstCatchTime = __parsing_CometModern__(resp,jsonArrayData)
+                                 headers=headers,
+                                 timeout=20,
+                                 verify="./config/certs.pem",
+                                 proxies={'http': random_proxy_ip, "https":random_proxy_ip})
+            if reqName == 'ProfileCometTimelineFeedRefetchQuery':
+                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time = __parsingProfileComet__(resp, jsonArrayData)
+            elif reqName == 'CometModernPageFeedPaginationQuery':
+                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time = __parsingCometModern__(resp, jsonArrayData)
 
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
                 contents = contents + edge_list
-            if not has_next_page(resp=resp):
+            if not hasNextPage(resp):
                 raise UnboundLocalError(f"Reached the last page")
             else:
                 cursor = cursor_now
             resp.close()
             time.sleep(random.randint(1,2))
             # 超過設定的撈取日期
-            if (isUpToTime == False) and (arriveFirstCatchTime == True) :
+            if (is_up_to_time == False) and (arrive_first_catch_time == True) :
                 return contents
                 
         except UnboundLocalError:
@@ -444,40 +442,39 @@ def Crawl_PagePosts(pageurl,jsonArrayData,proxy_ip_list, process_num, targetName
             break
 
         except Exception as e:
-            print(f"行程{process_num} :Failed reason : {str(e)}" )
+            print(f"行程{processNum}-> Failed reason: {str(e)}" )
             print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e,ProtocolError)) and (not isinstance(e,ChunkedEncodingError)) and (not isinstance(e,ConnectionError)) and (not isinstance(e,SSLError)) and  (not isinstance(e,UnboundLocalError)) and (not isinstance(e,TimeoutError)) and (not isinstance(e,KeyError)) and (not isinstance(e,ConnectTimeoutError)) and (not isinstance(e,MaxRetryError)) and (not isinstance(e,ConnectionResetError)) and (not isinstance(e,ProxyError)) and (not isinstance(e,ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(traceBack=f"pageid: {pageid}, docid: {docid}, cursor: {cursor}")
+                writer.writeLogToFile(traceBack=f"pageid: {pageID}, docid: {docID}, cursor: {cursor}")
 
-            proxyCount+=1
-            if proxyCount >= len(proxyIPList):
-                if tryCount>=10000:
-                    print(f"failed to catch posts after {tryCount} times trying...")
+            proxy_count+=1
+            if proxy_count >= len(proxy_ip_list):
+                if try_count>=10000:
+                    print(f"failed to catch posts after {try_count} times trying...")
                     return contents
                 print("all proxy are down ! please refresh the proxyList")
-                proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                proxyCount = 0
-                tryCount+=1
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                proxy_count = 0
+                try_count += 1
+                random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                 continue
             else:
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                 continue
     session.close()
     return contents
 
 
 
-def Crawl_PageFeedback(pageurl,feedback_id,docid,posts_count,req_name,fb_dtsg,targetName, process_num, queue=None, queue_signal=None):
-    tryCount = 0
-    proxyCount = 0
-    proxyIPList = json.loads(os.environ['proxy_list'])
-    randomProxyIP ="http://" + proxyIPList[proxyCount]
+def crawlFeedback(pageURL, feedbackID, docID, postsCount, reqName, fbDTSG, targetName, processNum, queue: Queue=None, queueSignal: Queue=None) -> list:
+    try_count = 0
+    proxy_count = 0
+    proxy_ip_list = json.loads(os.environ['proxy_list'])
+    random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
     contents = []
     cursor = ''
-    headers = __get_headers__(pageurl)
-    # Get postid and reqname
+    headers = __getHeaders__(pageURL)
     session = requests.session()
 
     # 設定失敗重試策略
@@ -487,33 +484,37 @@ def Crawl_PageFeedback(pageurl,feedback_id,docid,posts_count,req_name,fb_dtsg,ta
         method_whitelist=["HEAD", "GET", "OPTIONS","POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(pool_connections=10,pool_maxsize=20,max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     while True:
-        print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
+        # print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
         data = {'variables': str({
                                     "cursor": cursor,
-                                    'id': feedback_id,
+                                    'id': feedbackID,
                                     "privacySelectorRenderLocation":"COMET_STREAM",
                                     "scale":"1",
                                     "__relay_internal__pv__FBReelsEnableDeferrelayprovider":"false"
                                     }),
-                    'doc_id': docid,
+                    'doc_id': docID,
                     "__a": "1",
                     "__comet_req": "15",
-                    "fb_api_req_friendly_name":req_name
+                    "fb_api_req_friendly_name":reqName
             }
+
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                  data=data,
-                                 headers=headers,timeout=20,verify="./config/certs.pem",proxies={'http': randomProxyIP,"https":randomProxyIP})
-            edge_list, cursor_now = __parsing_Feedback__(resp,posts_count)
+                                 headers=headers,
+                                 timeout=20,
+                                 verify="./config/certs.pem",
+                                 proxies={'http': random_proxy_ip,"https":random_proxy_ip})
+            edge_list, cursor_now = __parsingFeedback__(resp, postsCount)
 
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
                 contents = contents + edge_list
-            if not has_next_page_feedback(resp=resp):
+            if not hasNextPageFeedback(resp):
                 raise UnboundLocalError(f"Reached the last page")
             else:
                 cursor = cursor_now
@@ -528,70 +529,70 @@ def Crawl_PageFeedback(pageurl,feedback_id,docid,posts_count,req_name,fb_dtsg,ta
             # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e,ProtocolError)) and (not isinstance(e,ChunkedEncodingError)) and (not isinstance(e,ConnectionError)) and (not isinstance(e,SSLError)) and (not isinstance(e,UnboundLocalError)) and  (not isinstance(e,TimeoutError)) and (not isinstance(e,KeyError)) and (not isinstance(e,ConnectTimeoutError)) and (not isinstance(e,MaxRetryError)) and (not isinstance(e,ConnectionResetError)) and (not isinstance(e,ProxyError)) and (not isinstance(e,ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(traceBack=f"post_id: {posts_count},feedback_id : {feedback_id}, docid: {docid}, cursor: {cursor}")
+                writer.writeLogToFile(traceBack= f"post_id:{postsCount}, feedback_id:{feedbackID}, docid:{docID}, cursor:{cursor}")
 
-            proxyCount+=1
-            if proxyCount >= len(proxyIPList):
-                if tryCount>=10000:
-                    print(f"failed to catch SectionAbout after {tryCount} times trying...")
+            proxy_count+=1
+            if proxy_count >= len(proxy_ip_list):
+                if try_count >= 10000:
+                    print(f"failed to catch SectionAbout after {try_count} times trying...")
                     return contents
                 # 沒有使用多執行緒的走這邊
-                if queue_signal is None:   
-                    proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                    proxyCount = 0
-                    tryCount+=1
-                    randomProxyIP ="http://" + proxyIPList[proxyCount]
+                if queueSignal is None:   
+                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                    proxy_count = 0
+                    try_count += 1
+                    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                     continue
                 else:
                     # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxyIPList) != os.environ['proxy_list']:
+                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
                         # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxyIPList = json.loads(os.environ['proxy_list'])
-                        proxyCount = 0
-                        randomProxyIP ="http://" + proxyIPList[proxyCount]
+                        proxy_ip_list = json.loads(os.environ['proxy_list'])
+                        proxy_count = 0
+                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                         continue
                     else:
                         #尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queue_signal.qsize()==0:
-                            queue_signal.put(str(process_num))
-                            proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                            ip_list_str = json.dumps(proxyIPList)
+                        if queueSignal.qsize()==0:
+                            queueSignal.put(str(processNum))
+                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                            ip_list_str = json.dumps(proxy_ip_list)
                             os.environ['proxy_list'] = ip_list_str
-                            proxyCount = 0
-                            tryCount+=1
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
-                            sig = queue_signal.get()
-                            print(f"行程{process_num} proxyList 更新完畢, 釋放queue_signal: {sig}")
+                            proxy_count = 0
+                            try_count += 1
+                            random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
+                            sig = queueSignal.get()
+                            print(f"行程{processNum} proxyList更新完畢, 釋放queue_signal: {sig}")
                             continue
                         else:
                             # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
                             # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxyIPList = json.loads(os.environ['proxy_list'])
-                            proxyCount = 0
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
+                            proxy_ip_list = json.loads(os.environ['proxy_list'])
+                            proxy_count = 0
+                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                             continue
             else:
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
     session.close()
     
     if queue is not None:
         queue.put(contents)
         if queue.qsize() % 50 == 0:
-            print(f"行程{process_num} {targetName}:目前queue的長度:{queue.qsize()}")
+            print(f"行程{processNum}-> {targetName}:目前queue的長度為 {queue.qsize()}")
 
     return contents
 
 
-def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendDict,process_num ,queue=None, queue_signal=None):
-    tryCount = 0
-    proxyCount = 0
-    proxyIPList = json.loads(os.environ['proxy_list'])
-    randomProxyIP ="http://" + proxyIPList[proxyCount]
+def crawlSectionAbout(pageURL, fbDTSG, docID, userID, reqName, targetName, processNum, friendDict, queue: Queue=None, queueSignal: Queue=None) -> list:
+    try_count = 0
+    proxy_count = 0
+    proxy_ip_list = json.loads(os.environ['proxy_list'])
+    random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
     contents = []
-    collectionTokenList = []
+    collection_token_list = []
     edge_list = []
-    headers = __get_headers__(pageurl)
+    headers = __getHeaders__(pageURL)
 
     session = requests.session()
     # 設定失敗重試策略
@@ -601,7 +602,7 @@ def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendD
         method_whitelist=["HEAD", "GET", "OPTIONS","POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(pool_connections=10,pool_maxsize=20,max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     while True:
@@ -609,25 +610,28 @@ def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendD
         # first call
         # collectionToken 不帶表示抓總覽
         data = {'variables': str({ 
-                                "pageID": userid,
-                                "userID": userid,
+                                "pageID": userID,
+                                "userID": userID,
                                 "scale":"1",
                                 "__relay_internal__pv__FBReelsEnableDeferrelayprovider":"false",
                                 "__relay_internal__pv__FBReelsDisableBackgroundrelayprovider":"false",
                                 "__relay_internal__pv__FBReelsShowOverflowMenuInFeedbackBarrelayprovider":"false"
                                 }),
-                'doc_id': docid,
+                'doc_id': docID,
                 "__a": "1",
                 "__comet_req": "15",
-                "fb_dtsg":fb_dtsg,
-                "fb_api_req_friendly_name":req_name
+                "fb_dtsg":fbDTSG,
+                "fb_api_req_friendly_name":reqName
                 }
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                     data=data,
-                                    headers=headers,timeout=20,verify="./config/certs.pem",proxies={'http': randomProxyIP,"https":randomProxyIP})
-            if req_name == 'ProfileCometAboutAppSectionQuery':
-                edge_list = __parsing_SectionAbout__(resp,0)
+                                    headers=headers,
+                                    timeout=20,
+                                    verify="./config/certs.pem",
+                                    proxies={'http': random_proxy_ip, "https":random_proxy_ip})
+            if reqName == 'ProfileCometAboutAppSectionQuery':
+                edge_list = __parsingSectionAbout__(resp, 0)
                 resp.close()
                 break
              
@@ -636,86 +640,89 @@ def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendD
             # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e,ProtocolError)) and (not isinstance(e,ChunkedEncodingError)) and (not isinstance(e,ConnectionError)) and (not isinstance(e,SSLError)) and  (not isinstance(e,UnboundLocalError)) and  (not isinstance(e,TimeoutError)) and (not isinstance(e,KeyError)) and (not isinstance(e,ConnectTimeoutError)) and (not isinstance(e,MaxRetryError)) and (not isinstance(e,ConnectionResetError)) and (not isinstance(e,ProxyError)) and (not isinstance(e,ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(traceBack=f"userid: {userid}, docid: {docid}, collectionToken: 0")
+                writer.writeLogToFile(traceBack=f"userid: {userID}, docid: {docID}, collectionToken: 0")
 
-            proxyCount+=1
-            if proxyCount >= len(proxyIPList):
-                if tryCount>=10000:
-                    print(f"failed to catch SectionAbout after {tryCount} times trying...")
+            proxy_count+=1
+            if proxy_count >= len(proxy_ip_list):
+                if try_count >= 10000:
+                    print(f"行程{processNum}-> failed to catch SectionAbout after {try_count} times trying...")
                     break
                 # 沒有使用多執行緒的走這邊
-                if queue_signal is None:   
-                    proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                    proxyCount = 0
-                    tryCount+=1
-                    randomProxyIP ="http://" + proxyIPList[proxyCount]
+                if queueSignal is None:   
+                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                    proxy_count = 0
+                    try_count += 1
+                    random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                     continue
                 else:
                     # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxyIPList) != os.environ['proxy_list']:
+                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
                         # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxyIPList = json.loads(os.environ['proxy_list'])
-                        proxyCount = 0
-                        randomProxyIP ="http://" + proxyIPList[proxyCount]
+                        proxy_ip_list = json.loads(os.environ['proxy_list'])
+                        proxy_count = 0
+                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                         continue
                     else:
                         #尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queue_signal.qsize()==0:
-                            queue_signal.put(str(process_num))
-                            proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                            ip_list_str = json.dumps(proxyIPList)
+                        if queueSignal.qsize() == 0:
+                            queueSignal.put(str(processNum))
+                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                            ip_list_str = json.dumps(proxy_ip_list)
                             os.environ['proxy_list'] = ip_list_str
-                            proxyCount = 0
-                            tryCount+=1
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
-                            sig = queue_signal.get()
-                            print(f"行程{process_num} proxyList 更新完畢, 釋放queue_signal: {sig}")
+                            proxy_count = 0
+                            try_count += 1
+                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+                            sig = queueSignal.get()
+                            print(f"行程{processNum}-> proxyList 更新完畢, 釋放queue_signal: {sig}")
                             continue
                         else:
                             # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
                             # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxyIPList = json.loads(os.environ['proxy_list'])
-                            proxyCount = 0
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
+                            proxy_ip_list = json.loads(os.environ['proxy_list'])
+                            proxy_count = 0
+                            random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                             continue
             else:
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                 continue
     
     contents = contents + edge_list
-    collectionTokenList = edge_list[0]['id_output']
-    collectIDCount = 1
+    collection_token_list = edge_list[0]['id_output']
+    collect_id_count = 1
 
     while True:
-        # print(f"{targetName} 的抓取進度: {collectIDCount}")
+        # print(f"{targetName} 的抓取進度: {collect_id_count}")
         # 關於裡面的資料不須全拿,多餘的直接略過
-        if collectIDCount >= 5:
+        if collect_id_count >= 5:
             break
         data = {'variables': str({ 
-                                    "collectionToken":collectionTokenList[collectIDCount],
-                                    "pageID": userid,
-                                    "userID": userid,
-                                    "scale":"1",
-                                    "__relay_internal__pv__FBReelsEnableDeferrelayprovider":"false",
-                                    "__relay_internal__pv__FBReelsDisableBackgroundrelayprovider":"false",
-                                    "__relay_internal__pv__FBReelsShowOverflowMenuInFeedbackBarrelayprovider":"false"
+                                    "collectionToken": collection_token_list[collect_id_count],
+                                    "pageID": userID,
+                                    "userID": userID,
+                                    "scale": "1",
+                                    "__relay_internal__pv__FBReelsEnableDeferrelayprovider": "false",
+                                    "__relay_internal__pv__FBReelsDisableBackgroundrelayprovider": "false",
+                                    "__relay_internal__pv__FBReelsShowOverflowMenuInFeedbackBarrelayprovider": "false"
                                     }),
-                    'doc_id': docid,
+                    'doc_id': docID,
                     "__a": "1",
                     "__comet_req": "15",
-                    "fb_dtsg":fb_dtsg,
-                    "fb_api_req_friendly_name":req_name
+                    "fb_dtsg": fbDTSG,
+                    "fb_api_req_friendly_name": reqName
                     }
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                  data=data,
-                                 headers=headers,timeout=20,verify="./config/certs.pem",proxies={'http': randomProxyIP,"https":randomProxyIP})
-            if req_name == 'ProfileCometAboutAppSectionQuery':
-                edge_list = __parsing_SectionAbout__(resp,collectIDCount)
+                                 headers=headers,
+                                 timeout=20,
+                                 verify="./config/certs.pem",
+                                 proxies={'http': random_proxy_ip,"https":random_proxy_ip})
+            if reqName == 'ProfileCometAboutAppSectionQuery':
+                edge_list = __parsingSectionAbout__(resp, collect_id_count)
 
-            if len(edge_list)!=0:
+            if len(edge_list) != 0:
                 contents = contents + edge_list
-                collectIDCount+=1
+                collect_id_count+=1
             resp.close()
 
 
@@ -724,50 +731,50 @@ def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendD
             # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e,ProtocolError)) and (not isinstance(e,ChunkedEncodingError)) and (not isinstance(e,ConnectionError)) and (not isinstance(e,SSLError)) and  (not isinstance(e,UnboundLocalError)) and (not isinstance(e,TimeoutError)) and (not isinstance(e,KeyError)) and (not isinstance(e,ConnectTimeoutError)) and (not isinstance(e,MaxRetryError)) and (not isinstance(e,ConnectionResetError)) and (not isinstance(e,ProxyError)) and (not isinstance(e,ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(traceBack=f"userid: {userid}, docid: {docid}, collectionToken: {collectionTokenList[collectIDCount]}")
+                writer.writeLogToFile(traceBack=f"userid: {userID}, docid: {docID}, collectionToken: {collection_token_list[collect_id_count]}")
 
-            proxyCount+=1
-            if proxyCount >= len(proxyIPList):
-                if tryCount>=10000:
-                    print(f"failed to catch SectionAbout after {tryCount} times trying...")
+            proxy_count+=1
+            if proxy_count >= len(proxy_ip_list):
+                if try_count >= 10000:
+                    print(f"行程{processNum}-> failed to catch SectionAbout after {try_count} times trying...")
                     return contents
                 # 沒有使用多執行緒的走這邊
-                if queue_signal is None:   
-                    proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                    proxyCount = 0
-                    tryCount+=1
-                    randomProxyIP ="http://" + proxyIPList[proxyCount]
+                if queueSignal is None:   
+                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                    proxy_count = 0
+                    try_count += 1
+                    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                     continue
                 else:
                     # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxyIPList) != os.environ['proxy_list']:
+                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
                         # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxyIPList = json.loads(os.environ['proxy_list'])
-                        proxyCount = 0
-                        randomProxyIP ="http://" + proxyIPList[proxyCount]
+                        proxy_ip_list = json.loads(os.environ['proxy_list'])
+                        proxy_count = 0
+                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                         continue
                     else:
                         #尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queue_signal.qsize()==0:
-                            queue_signal.put(str(process_num))
-                            proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                            ip_list_str = json.dumps(proxyIPList)
+                        if queueSignal.qsize() == 0:
+                            queueSignal.put(str(processNum))
+                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                            ip_list_str = json.dumps(proxy_ip_list)
                             os.environ['proxy_list'] = ip_list_str
-                            proxyCount = 0
-                            tryCount+=1
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
-                            sig = queue_signal.get()
-                            print(f"行程{process_num} proxyList 更新完畢, 釋放queue_signal: {sig}")
+                            proxy_count = 0
+                            try_count += 1
+                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+                            sig = queueSignal.get()
+                            print(f"行程{processNum}-> proxyList 更新完畢, 釋放queue_signal: {sig}")
                             continue
                         else:
                             # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
                             # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxyIPList = json.loads(os.environ['proxy_list'])
-                            proxyCount = 0
-                            randomProxyIP ="http://" + proxyIPList[proxyCount]
+                            proxy_ip_list = json.loads(os.environ['proxy_list'])
+                            proxy_count = 0
+                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                             continue
             else:
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
     session.close()
 
@@ -777,45 +784,21 @@ def Crawl_Section_About(pageurl,fb_dtsg,docid,userid,req_name,targetName,friendD
     if queue is not None:
         queue.put(contents)
         if queue.qsize() % 50 == 0:
-            print(f"行程{process_num} {targetName}:目前queue的長度:{queue.qsize()}")
+            print(f"行程{processNum}-> {targetName}:目前queue的長度為 {queue.qsize()}")
 
     return contents
 
 
-def Crawl_friendzone(pageurl,jsonArrayData,proxy_ip_list, process_num, targetName):
-    tryCount = 0
-    proxyCount = 0
-    proxyIPList = proxy_ip_list
-    randomProxyIP ="http://" + proxyIPList[proxyCount]
+def crawlFriendzone(pageURL, friendzoneID, docID, reqName, proxyIpList, processNum, targetName) -> list:
+    try_count = 0
+    proxy_count = 0
+    proxy_ip_list = proxyIpList
+    random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
     contents = []
     cursor = ''
     
-    headers = __get_headers__(pageurl)
+    headers = __getHeaders__(pageURL)
     # headers['cookie'] += cookieStr
-
-    # Get pageid, postid and reqname
-
-    accountsLen = len(jsonArrayData['user']['account'])
-    account_num = os.environ.get("account_number_now")
-    if account_num is None:
-        account_num = random.randint(0,accountsLen-1)
-    else: 
-        account_num = int(account_num)
-    while True:
-        friendzone_id,userid, docid, req_name = __get_friendzone_nov_section__(pageurl,account_num,jsonArrayData=jsonArrayData)
-        if docid != "" and friendzone_id!= "":
-            os.environ['account_number_now'] = str(account_num)
-            break
-        else:
-            print("未能取得朋友欄目的docid 或 friendzone_id,嘗試換其他帳號試試")
-            account_num+=1
-            if account_num==accountsLen:
-                account_num = 0
-            os.environ['account_number_now'] = str(account_num)
-            continue
-
-
-
 
     session = requests.session()
     # 設定失敗重試策略
@@ -829,30 +812,28 @@ def Crawl_friendzone(pageurl,jsonArrayData,proxy_ip_list, process_num, targetNam
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
-    # # test
-    # cursor = "AQHRvxZQu9-qubSB88HSiqoDq8XZh7czCjVQ__BKOSVKgR92RY-jYDigMBLRru8feLGQKVQ0oUluDuypfAYKGvQOhtylFy4RYowx0GQXak6CkEYl7lyj_ZahYl6s4syqOawH"
-    # pageid = "100002814720095"
-    # docid = "5511844245541805"
-
     while True:
        # print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
         data = {'variables': str({  
                                     "cursor": cursor,
-                                    "id": friendzone_id,
-                                    "scale":"1",
+                                    "id": friendzoneID,
+                                    "scale": "1",
                                 }),
-                    'doc_id': docid}
+                    'doc_id': docID}
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                  data=data,
-                                 headers=headers,timeout=20,verify="./config/certs.pem",proxies={'http': randomProxyIP,"https":randomProxyIP})
-            if req_name == 'ProfileCometAppCollectionListRendererPaginationQuery':
-                edge_list, cursor_now = __parsing_friendzone_nov__(resp)
+                                 headers=headers,
+                                 timeout=20,
+                                 verify="./config/certs.pem",
+                                 proxies={'http': random_proxy_ip,"https":random_proxy_ip})
+            if reqName == 'ProfileCometAppCollectionListRendererPaginationQuery':
+                edge_list, cursor_now = __parsingFriendzoneNov__(resp)
 
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
                 contents = contents + edge_list
-            if not has_next_page_friendzone(resp=resp):
+            if not hasNextPageFriendzone(resp):
                 raise UnboundLocalError("Reached the last page")
             else:
                 cursor = cursor_now
@@ -865,25 +846,100 @@ def Crawl_friendzone(pageurl,jsonArrayData,proxy_ip_list, process_num, targetNam
             break
 
         except Exception as e:
-            print(f"行程{process_num} :Failed reason : {str(e)}" )
+            print(f"行程{processNum}-> Failed reason : {str(e)}" )
             print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e,ProtocolError)) and (not isinstance(e,ChunkedEncodingError)) and (not isinstance(e,ConnectionError)) and (not isinstance(e,SSLError)) and  (not isinstance(e,UnboundLocalError)) and (not isinstance(e,TimeoutError)) and (not isinstance(e,KeyError)) and (not isinstance(e,ConnectTimeoutError)) and (not isinstance(e,MaxRetryError)) and (not isinstance(e,ConnectionResetError)) and (not isinstance(e,ProxyError)) and (not isinstance(e,ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(traceBack=f"friendzone_id: {friendzone_id}, docid: {docid}, cursor: {cursor}")
+                writer.writeLogToFile(traceBack=f"friendzone_id: {friendzoneID}, docid: {docID}, cursor: {cursor}")
 
-            proxyCount+=1
-            if proxyCount >= len(proxyIPList):
-                if tryCount>=10000:
-                    print(f"failed to catch posts after {tryCount} times trying...")
+            proxy_count += 1
+            if proxy_count >= len(proxy_ip_list):
+                if try_count >= 10000:
+                    print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
                     return contents
                 print("all proxy are down ! please refresh the proxyList")
-                proxyIPList = proxy.gRequestsProxyList(process_num=process_num)
-                proxyCount = 0
-                tryCount+=1
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                proxy_ip_list = proxy.gRequestsProxyList(processNum)
+                proxy_count = 0
+                try_count += 1
+                random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                 continue
             else:
-                randomProxyIP ="http://" + proxyIPList[proxyCount]
+                random_proxy_ip ="http://" + proxy_ip_list[proxy_count]
                 continue
     session.close()
     return contents
+
+
+def fetchEigenvaluesAndID(func, customDriver: Union[webDriver.postsDriver, webDriver.feedbackDriver, webDriver.friendzoneDriver], pageURL, jsonArrayData, errString, checkOption=2) -> tuple[str, str, str, bool]:
+    # checkOption-> 0: 只檢查id , 1:只檢查docid , 2: 兩個都檢查(預設值為2)
+    accounts_len = len(jsonArrayData['user']['account'])
+    account_num = os.environ.get("account_number_now")
+    id = ""
+    docid = ""
+    req_name = ""
+    if account_num is None:
+        account_num = random.randint(0, accounts_len-1)
+    else: 
+        account_num = int(account_num)
+
+    # 先檢查登入狀態,若未登入則先完成首次登入
+    # 下方的判斷中,只要發現有取不到必要資料的情形,則捨棄當前的driver實體,重新創立一個並重新登入
+    if customDriver.isLogin :
+        pass
+    else:
+        customDriver.login(account_num, jsonArrayData)
+        customDriver.isLogin = True 
+    
+    while True:
+        id, docid, req_name, is_been_banned = func(pageURL=pageURL, customDriver=customDriver)
+
+        # 若發現該頁面被臉書封鎖,則直接回傳空值與標記,由外部判斷處理
+        if is_been_banned :
+            return id, docid, req_name, is_been_banned
+
+        match checkOption:
+            case 0:
+                if id != "":
+                    os.environ['account_number_now'] = str(account_num)
+                    return id, docid, req_name, is_been_banned
+                else:
+                    print(errString)
+                    account_num += 1
+                    if account_num == accounts_len:
+                        account_num = 0
+                    os.environ['account_number_now'] = str(account_num)
+                    customDriver.clearDriver()
+                    customDriver.driverInitialize()
+                    customDriver.login(account_num, jsonArrayData)
+                    customDriver.isLogin = True 
+                    continue
+            case 1:
+                if docid != "":
+                    os.environ['account_number_now'] = str(account_num)
+                    return id, docid, req_name, is_been_banned
+                else:
+                    print(errString)
+                    account_num += 1
+                    if account_num == accounts_len:
+                        account_num = 0
+                    os.environ['account_number_now'] = str(account_num)
+                    customDriver.clearDriver()
+                    customDriver.driverInitialize()
+                    customDriver.login(account_num, jsonArrayData)
+                    customDriver.isLogin = True 
+                    continue
+            case 2:
+                if docid != "" and id != "":
+                    os.environ['account_number_now'] = str(account_num)
+                    return id, docid, req_name, is_been_banned
+                else:
+                    print(errString)
+                    account_num += 1
+                    if account_num == accounts_len:
+                        account_num = 0
+                    os.environ['account_number_now'] = str(account_num)
+                    customDriver.clearDriver()
+                    customDriver.driverInitialize()
+                    customDriver.login(account_num, jsonArrayData)
+                    customDriver.isLogin = True 
+                    continue

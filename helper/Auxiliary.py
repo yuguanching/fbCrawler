@@ -8,7 +8,7 @@ from datetime import datetime
 from ioService import writer,reader
 
 
-def createIndexExcelAndRead():
+def createIndexExcelAndRead() -> None:
 
     jsonArrayData = reader.readInputJson()
 
@@ -17,59 +17,70 @@ def createIndexExcelAndRead():
         '粉專':jsonArrayData['targetName'],
         '連結':jsonArrayData['targetURL']
     })
-    writer.pdToExcel(des='./output/index.xlsx',df=index_df,sheetName="sheet1")
+    writer.pdToExcel(des='./output/index.xlsx', df=index_df, sheetName="sheet1")
     print("已完成目標粉專的目錄建置")
 
 
-def checkDirAndCreate(count):
+def checkDirAndCreate(count) -> None:
     if os.path.exists("./output/" + str(count)):
         print("subDir " + str(count) + " is already exists")
     else : 
-        os.mkdir("./output/" +str(count))
-        os.makedirs("./output/" +str(count) + "/img/sharer")
-        os.makedirs("./output/" +str(count) + "/img/been_sharer")
-        os.makedirs("./output/" +str(count) + "/img/word_cloud")
+        os.mkdir("./output/" + str(count))
+        os.makedirs("./output/" + str(count) + "/img/sharer")
+        os.makedirs("./output/" + str(count) + "/img/been_sharer")
+        os.makedirs("./output/" + str(count) + "/img/word_cloud")
         print("subDir " + str(count) + " created successfully")
 
 
-def detectURL(str):
+def detectURL(str: str) -> str:
     return ((str.find("http://")== -1 ) and (str.find("https://") == -1))
 
 
 
-def dateCompare(targetTimeStamp,userSettingTime):
-    userStartTimeObj = datetime.strptime(userSettingTime["searchStartDate"],"%Y-%m-%d %H:%M:%S")
-    userEndTimeObj = datetime.strptime(userSettingTime["searchEndDate"],"%Y-%m-%d %H:%M:%S")
+def dateCompare(targetTimeStamp, userSettingTime) -> tuple[bool, bool]:
+    user_start_time_obj = datetime.strptime(userSettingTime["searchStartDate"], "%Y-%m-%d %H:%M:%S")
+    user_end_time_obj = datetime.strptime(userSettingTime["searchEndDate"], "%Y-%m-%d %H:%M:%S")
 
     # 2022/10/29 加入是否從當前時間點作為起點的開關
     if userSettingTime['isTimeEndToCurrent']:
-        userEndTimeObj = datetime.now()
+        user_end_time_obj = datetime.now()
 
-    targetTime = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(int(targetTimeStamp)))
-    targetTimeObj = datetime.strptime(targetTime,"%Y-%m-%d %H:%M:%S")
+    target_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(targetTimeStamp)))
+    target_time_obj = datetime.strptime(target_time, "%Y-%m-%d %H:%M:%S")
 
-    arriveFirstCatchTime = True
-    if targetTimeObj >= userEndTimeObj:
-        arriveFirstCatchTime = False
+    arrive_first_catch_time = True
+    if target_time_obj >= user_end_time_obj:
+        arrive_first_catch_time = False
 
 
-    if (targetTimeObj > userStartTimeObj) and (targetTimeObj < userEndTimeObj) :
-        return True,arriveFirstCatchTime
+    if (target_time_obj > user_start_time_obj) and (target_time_obj < user_end_time_obj) :
+        return True, arrive_first_catch_time
     else :
-        return False,arriveFirstCatchTime
+        return False, arrive_first_catch_time
     
     # # True : 還能抓 False:不能抓
     # return targetTimeObj > userTimeObj
 
 
 
-def make_hyperlink(value,name,index = "1"):
+def makeHyperlink(value, name, index="1") -> str:
     url = "#{}!A{}"
-    return '=HYPERLINK("%s", "%s")' % (url.format(value,index), name) 
+    return '=HYPERLINK("%s", "%s")' % (url.format(value, index), name) 
 
 
 
 # 陣列分群輔助函式
-def split(a, n):
+def split(a, n) -> list:
     k, m = divmod(len(a), n)
     return list((a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)))
+
+
+# 嘗試透過profile個人頁連結擷取userid
+def parseFBUserID(url) -> str:
+    keyword = "?id="
+    pos = url.find(keyword)
+    if pos == -1 :
+        return ""
+    else:
+        userid = url[pos+4:]
+        return userid

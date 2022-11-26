@@ -6,14 +6,14 @@ import grequests
 import requests
 import time
 
-def getTaiwanFreeProxyList():
+def getTaiwanFreeProxyList() -> list:
     proxy_ips = []
     try:
-        response = requests.get("https://freeproxyupdate.com/taiwan-tw/http",timeout=20)
+        response = requests.get("https://freeproxyupdate.com/taiwan-tw/http", timeout=20)
         proxy_ip = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', response.text)  
         proxy_port = re.findall('d>\d+<', response.text)
         response.close()
-        for ip,port in zip(proxy_ip,proxy_port):
+        for ip, port in zip(proxy_ip, proxy_port):
             proxy_ips.append(ip + ":" + port[2:len(port)-1])
     except :
         print("tw的IP抓取失敗,直接捨棄結果")
@@ -21,7 +21,7 @@ def getTaiwanFreeProxyList():
     return proxy_ips
 
 # 單線舊版,測試檢查用
-def getFreeProxyList():
+def getFreeProxyList() -> dict:
     response = requests.get("https://www.google-proxy.net/")
     
     proxy_ips = re.findall('\d+\.\d+\.\d+\.\d+:\d+', response.text)  #「\d+」代表數字一個位數以上
@@ -85,7 +85,7 @@ def getFreeProxyList():
 #         return res_list
 
 
-def gRequestsProxyList(process_num=None):
+def gRequestsProxyList(processNum=None) -> list:
     valid_ips = []
     proxy_ips = []
     while True:
@@ -99,10 +99,10 @@ def gRequestsProxyList(process_num=None):
             proxy_ips = proxy_ips +  re.findall('\d+\.\d+\.\d+\.\d+:\d+', response_free.text)
             proxy_ips =  getTaiwanFreeProxyList() + proxy_ips
 
-            if process_num is None:
+            if processNum is None:
                 print("異步呼叫,蒐集可用的proxy")
             else:
-                print(f"行程{process_num} : 異步呼叫,蒐集可用的proxy")
+                print(f"行程{processNum} : 異步呼叫,蒐集可用的proxy")
             response_ssl.close()
             response_anonymous.close()
             response_free.close()
@@ -113,7 +113,7 @@ def gRequestsProxyList(process_num=None):
             res_list1 = grequests.map(req_list1)
             res_list2 = grequests.map(req_list2)
 
-            for res1,res2,ip in zip(res_list1,res_list2,proxy_ips):
+            for res1, res2, ip in zip(res_list1, res_list2, proxy_ips):
                 if (res1 is not None) or (res2 is not None):
                     valid_ips.append(ip)
                 if (res1 is not None):
@@ -122,14 +122,14 @@ def gRequestsProxyList(process_num=None):
                     res2.close()
 
             if len(valid_ips) <=0:
-                print(f"行程{process_num} 取proxy發生意外錯誤2,等待後重取")
+                print(f"行程{processNum} 取proxy發生意外錯誤2,等待後重取")
                 valid_ips = []
                 proxy_ips = []
                 continue
             else:
                 break
         except Exception as e:
-            print(f"行程{process_num} 取proxy發生意外錯誤1: {str(e)},等待後重取")
+            print(f"行程{processNum} 取proxy發生意外錯誤1: {str(e)},等待後重取")
             valid_ips = []
             proxy_ips = []
             continue

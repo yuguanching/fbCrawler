@@ -9,9 +9,11 @@ import traceback
 
 os.environ['WDM_LOG_LEVEL'] = '0'
 
-def get_csrf_token(jsonArrayData):
+
+
+def getCsrfToken(jsonArrayData):
     target = None
-    targetURL = jsonArrayData['targetURL']
+    target_url = jsonArrayData['targetURL']
     count = 0
     # ------------------------Web driver settings-------------------------------------
     options = webdriver.ChromeOptions()
@@ -32,11 +34,11 @@ def get_csrf_token(jsonArrayData):
     cookies_cUser = ""
     while True:
         try:
-            driver = webdriver.Chrome(ChromeDriverManager().install(),options=options,seleniumwire_options=wire_options)
+            driver = webdriver.Chrome(ChromeDriverManager().install(), options=options, seleniumwire_options=wire_options)
             driver.delete_all_cookies()
 
-            webDriver.login(driver=driver,accountCounter=count,jsonArrayData=jsonArrayData,loginURL="https://www.facebook.com")
-            driver.get(targetURL[0])
+            webDriver.loginForSeleniumWire(driver=driver, accountCounter=count, jsonArrayData=jsonArrayData, loginURL="https://www.facebook.com")
+            driver.get(target_url[0])
             time.sleep(3)
 
             for req in driver.requests:
@@ -51,7 +53,7 @@ def get_csrf_token(jsonArrayData):
             
             if target is None:
                 count+=1
-                if count >=len(targetURL):
+                if count >=len(target_url):
                     count = 0
                 continue
             else:
@@ -59,11 +61,11 @@ def get_csrf_token(jsonArrayData):
                 print(f"params from selenium wire : {params_dict}")
                 print(cookies_xs)
                 print(cookies_cUser)
-                return params_dict,cookies_xs,cookies_cUser
+                return params_dict, cookies_xs, cookies_cUser
         except Exception as e:
             # print(traceback.format_exc())
             count+=1
-            if count >=len(targetURL):
+            if count >=len(target_url):
                 count = 0
             continue
         finally:
@@ -74,4 +76,4 @@ def get_csrf_token(jsonArrayData):
 
 
 if __name__ == "__main__":
-    get_csrf_token()
+    getCsrfToken()

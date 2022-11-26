@@ -8,27 +8,27 @@ import numpy as np
 
 
 
-def mergeAllFriendzoneDataToExcel():
+def mergeAllFriendzoneDataToExcel() -> None:
     file_name = "friendzoneData.xlsx"
 
     jsonArrayData = reader.readInputJson()
 
-    targetNames = jsonArrayData['targetName']
-    all_friendzoneData_list = []
+    target_names = jsonArrayData['targetName']
+    all_friendzone_data_list = []
 
 
-    print(f"開始進行朋友與關係人統計資料合併,粉專列項:{targetNames}")
+    print(f"開始進行朋友與關係人統計資料合併,粉專列項:{target_names}")
 
-    for subDir in targetNames:
+    for sub_dir in target_names:
 
         #讀取相關的欄位
-        friendzoneDataDF = pd.read_excel(f"./output/{subDir}/{file_name}",sheet_name="sheet1",usecols="B:L")
-        all_friendzoneData_list.append(friendzoneDataDF)
+        friendzoneDataDF = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="sheet1", usecols="B:L")
+        all_friendzone_data_list.append(friendzoneDataDF)
 
 
-    all_friendzoneData = pd.concat(all_friendzoneData_list).reset_index(drop=True)
+    all_friendzone_data = pd.concat(all_friendzone_data_list).reset_index(drop=True)
 
-    writer.pdToExcel(des='./output/allFriendzoneData.xlsx',df=all_friendzoneData,sheetName="sheet1")    
+    writer.pdToExcel(des='./output/allFriendzoneData.xlsx', df=all_friendzone_data, sheetName="sheet1")    
 
     print("合併完成")
 

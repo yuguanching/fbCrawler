@@ -1,42 +1,40 @@
 import pandas as pd
 import win32com.client as win32
 import os
-import time
 import traceback
 from datetime import datetime
 
-def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True):
+def pdToExcel(des, df :pd.DataFrame ,sheetName, mode='w', autoFitIsNeed=True, indexIsNeed=True) -> None:
 
-
-    fileDir = os.path.dirname(os.path.realpath('__file__'))
-    filename = os.path.join(fileDir, des)
+    file_dir = os.path.dirname(os.path.realpath('__file__'))
+    filename = os.path.join(file_dir, des)
     
     # product csv file
-    filename_csv = filename.replace(".xlsx","_" + sheetName + ".csv")
+    filename_csv = filename.replace(".xlsx", "_" + sheetName + ".csv")
     df.to_csv(filename_csv, index=False, encoding='utf_8_sig')
 
-    if indexIsNeed  is True:
+    if indexIsNeed is True:
         if mode=="w":
-         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl') as writer:
+         with pd.ExcelWriter(filename, mode=mode, engine='openpyxl') as writer:
             df.to_excel(writer,
                         encoding='utf_8_sig',
                         index_label='id',
                         sheet_name=sheetName)
         else :
-         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl',if_sheet_exists="replace") as writer:
+         with pd.ExcelWriter(filename, mode=mode, engine='openpyxl', if_sheet_exists="replace") as writer:
             df.to_excel(writer,
                         encoding='utf_8_sig',
                         index_label='id',
                         sheet_name=sheetName)
     else :
         if mode=="w":
-         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl') as writer:
+         with pd.ExcelWriter(filename, mode=mode, engine='openpyxl') as writer:
             df.to_excel(writer,
                         encoding='utf_8_sig',
                         index=False,
                         sheet_name=sheetName)
         else :
-         with pd.ExcelWriter(filename,mode=mode,engine='openpyxl',if_sheet_exists="replace") as writer:
+         with pd.ExcelWriter(filename, mode=mode,engine='openpyxl', if_sheet_exists="replace") as writer:
             df.to_excel(writer,
                         encoding='utf_8_sig',
                         index=False,
@@ -52,7 +50,7 @@ def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True)
             excel.Application.Quit()
         except:
             writeLogToFile(traceBack=traceback.format_exc())
-            print(f"Some error were founded,failed to formated the excel file : {des}")
+            print(f"Some error were founded, failed to formated the excel file : {des}")
         
         # for column in df:
         #     print(column)
@@ -61,17 +59,17 @@ def pdToExcel(des,df,sheetName,mode='w',autoFitIsNeed = True,indexIsNeed = True)
         #     col_idx = df.columns.get_loc(column)
         #     writer.sheets[sheetName].set_column(col_idx, col_idx, column_length)
 
-def writeLogToFile(traceBack):
+def writeLogToFile(traceBack) -> None:
     now = datetime.now()
     now_for_file = now.strftime("%Y-%m-%d")
     now_for_log = now.strftime("%Y-%m-%d, %H:%M:%S")
-    fileName = "./log/" + now_for_file + ".log"
-    sourceFile = open(fileName, 'a',encoding='utf_8_sig')
+    filename = "./log/" + now_for_file + ".log"
+    sourceFile = open(filename, 'a', encoding='utf_8_sig')
     print(f"[{now_for_log}] : {traceBack}", file = sourceFile)
     sourceFile.close()
 
 
-def writeTempFile(filename,content):
-    f = open("./temp/" + filename + ".txt", "w",encoding='utf_8_sig')
+def writeTempFile(filename,content) -> None:
+    f = open("./temp/" + filename + ".txt", "w", encoding='utf_8_sig')
     f.write(content)
     f.close()
