@@ -2,20 +2,19 @@
 import os
 import json
 import pandas as pd
-import time 
+import time
+import configSetting
 
 from datetime import datetime
-from ioService import writer,reader
+from ioService import writer, reader
 
 
 def createIndexExcelAndRead() -> None:
 
-    jsonArrayData = reader.readInputJson()
-
     # 創建目標粉專的目錄excel
     index_df = pd.DataFrame({
-        '粉專':jsonArrayData['targetName'],
-        '連結':jsonArrayData['targetURL']
+        '粉專': configSetting.jsonArrayData['targetName'],
+        '連結': configSetting.jsonArrayData['targetURL']
     })
     writer.pdToExcel(des='./output/index.xlsx', df=index_df, sheetName="sheet1")
     print("已完成目標粉專的目錄建置")
@@ -24,7 +23,7 @@ def createIndexExcelAndRead() -> None:
 def checkDirAndCreate(count) -> None:
     if os.path.exists("./output/" + str(count)):
         print("subDir " + str(count) + " is already exists")
-    else : 
+    else:
         os.mkdir("./output/" + str(count))
         os.makedirs("./output/" + str(count) + "/img/sharer")
         os.makedirs("./output/" + str(count) + "/img/been_sharer")
@@ -33,16 +32,15 @@ def checkDirAndCreate(count) -> None:
 
 
 def detectURL(str: str) -> str:
-    return ((str.find("http://")== -1 ) and (str.find("https://") == -1))
+    return ((str.find("http://") == -1) and (str.find("https://") == -1))
 
 
-
-def dateCompare(targetTimeStamp, userSettingTime) -> tuple[bool, bool]:
-    user_start_time_obj = datetime.strptime(userSettingTime["searchStartDate"], "%Y-%m-%d %H:%M:%S")
-    user_end_time_obj = datetime.strptime(userSettingTime["searchEndDate"], "%Y-%m-%d %H:%M:%S")
+def dateCompare(targetTimeStamp) -> tuple[bool, bool]:
+    user_start_time_obj = datetime.strptime(configSetting.jsonArrayData["searchStartDate"], "%Y-%m-%d %H:%M:%S")
+    user_end_time_obj = datetime.strptime(configSetting.jsonArrayData["searchEndDate"], "%Y-%m-%d %H:%M:%S")
 
     # 2022/10/29 加入是否從當前時間點作為起點的開關
-    if userSettingTime['isTimeEndToCurrent']:
+    if configSetting.jsonArrayData['isTimeEndToCurrent']:
         user_end_time_obj = datetime.now()
 
     target_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(targetTimeStamp)))
@@ -52,21 +50,18 @@ def dateCompare(targetTimeStamp, userSettingTime) -> tuple[bool, bool]:
     if target_time_obj >= user_end_time_obj:
         arrive_first_catch_time = False
 
-
-    if (target_time_obj > user_start_time_obj) and (target_time_obj < user_end_time_obj) :
+    if (target_time_obj > user_start_time_obj) and (target_time_obj < user_end_time_obj):
         return True, arrive_first_catch_time
-    else :
+    else:
         return False, arrive_first_catch_time
-    
+
     # # True : 還能抓 False:不能抓
     # return targetTimeObj > userTimeObj
 
 
-
 def makeHyperlink(value, name, index="1") -> str:
     url = "#{}!A{}"
-    return '=HYPERLINK("%s", "%s")' % (url.format(value, index), name) 
-
+    return '=HYPERLINK("%s", "%s")' % (url.format(value, index), name)
 
 
 # 陣列分群輔助函式
@@ -79,7 +74,7 @@ def split(a, n) -> list:
 def parseFBUserID(url) -> str:
     keyword = "?id="
     pos = url.find(keyword)
-    if pos == -1 :
+    if pos == -1:
         return ""
     else:
         userid = url[pos+4:]

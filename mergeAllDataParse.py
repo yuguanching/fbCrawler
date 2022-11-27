@@ -1,14 +1,14 @@
-from ioService import writer,reader,parser
+from ioService import writer, reader, parser
 from collections import Counter
 from helper import Auxiliary
 import pandas as pd
+import configSetting
+
 
 def mergeAllDataParseToExcel() -> None:
     file_name = "dataParse.xlsx"
 
-    jsonArrayData = reader.readInputJson()
-
-    target_names = jsonArrayData['targetName']
+    target_names = configSetting.jsonArrayData['targetName']
     all_sharer_data_list = []
     all_sharer_list = []
     all_been_sharer_list = []
@@ -17,7 +17,7 @@ def mergeAllDataParseToExcel() -> None:
 
     for sub_dir in target_names:
 
-        #讀取相關的欄位
+        # 讀取相關的欄位
         sharer_data_df = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="sharerData", usecols="B:I")
         sharer_df = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="sharer", usecols="B:F")
         been_sharer_df = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="been_sharer", usecols="B:E")
@@ -29,10 +29,9 @@ def mergeAllDataParseToExcel() -> None:
     all_sharer = pd.concat(all_sharer_list).reset_index(drop=True)
     all_been_sharer = pd.concat(all_been_sharer_list).reset_index(drop=True)
 
-    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_sharer_data, sheetName="sharerData")    
-    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_sharer, sheetName="sharer", mode='a')    
-    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_been_sharer, sheetName="been_sharer", mode='a')    
-
+    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_sharer_data, sheetName="sharerData")
+    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_sharer, sheetName="sharer", mode='a')
+    writer.pdToExcel(des='./output/allDataParse.xlsx', df=all_been_sharer, sheetName="been_sharer", mode='a')
 
     print("合併完成")
 
@@ -40,9 +39,7 @@ def mergeAllDataParseToExcel() -> None:
 def mergeAllTagToExcel() -> None:
     file_name = "tag.xlsx"
 
-    jsonArrayData = reader.readInputJson()
-
-    target_names = jsonArrayData['targetName']
+    target_names = configSetting.jsonArrayData['targetName']
     all_raw_sentences_list = []
     all_sentences_list = []
     all_words_list = []
@@ -56,7 +53,7 @@ def mergeAllTagToExcel() -> None:
         all_raw_sentences_list.append(rawSentencesDf)
         all_sentences_list.append(sentencesDF)
         all_words_list.append(wordsDF)
-    
+
     all_raw_sentences = pd.concat(all_raw_sentences_list).reset_index(drop=True)
     all_sentences = pd.concat(all_sentences_list)
     all_words = pd.concat(all_words_list)
@@ -69,19 +66,18 @@ def mergeAllTagToExcel() -> None:
     all_words.sort_values('詞頻', ascending=False, inplace=True)
     all_words.reset_index(drop=True)
 
-    writer.pdToExcel(des='./output/allTag.xlsx', df=all_raw_sentences, sheetName="rawSentences")    
-    writer.pdToExcel(des='./output/allTag.xlsx', df=all_sentences, sheetName="sentence", indexIsNeed=False, mode='a')    
-    writer.pdToExcel(des='./output/allTag.xlsx', df=all_words, sheetName="word", indexIsNeed=False, mode='a')    
-    
+    writer.pdToExcel(des='./output/allTag.xlsx', df=all_raw_sentences, sheetName="rawSentences")
+    writer.pdToExcel(des='./output/allTag.xlsx', df=all_sentences, sheetName="sentence", indexIsNeed=False, mode='a')
+    writer.pdToExcel(des='./output/allTag.xlsx', df=all_words, sheetName="word", indexIsNeed=False, mode='a')
+
     print("合併完成")
     print("開始建立全斷詞的文字雲")
 
     all_words_counter = Counter()
     for index, row in all_words.iterrows():
-        all_words_counter.update({row['斷詞']:row['詞頻']})
+        all_words_counter.update({row['斷詞']: row['詞頻']})
 
     parser.createWordCloud(subDir="", counter=all_words_counter, forAll=True)
-
 
 
 if __name__ == '__main__':
