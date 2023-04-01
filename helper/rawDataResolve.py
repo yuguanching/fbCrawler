@@ -4,37 +4,54 @@ import re
 from ioService import writer
 
 
+# 粉專與社團文章抓取共用
 def __resolverEdgesPage__(edge) -> dict:
 
     ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
+    comet_sections_ = edge['node']['comet_sections']
 
     # name
     try:
-        comet_sections_ = edge['node']['comet_sections']
         name = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['name']
         # creation_time
         creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
         # message
-        message = comet_sections_['content']['story']['comet_sections'].get('message', '').get('story', '').get(
-            'message', '').get('text', '') if comet_sections_['content']['story']['comet_sections'].get('message', '') else ''
+        try:
+            message = comet_sections_['content']['story']['comet_sections'].get('message', '').get('story', '').get(
+                'message', '').get('text', '') if comet_sections_['content']['story']['comet_sections'].get('message', '') else ''
+        except:
+            try:
+                message = comet_sections_['content']['story']['comet_sections']['message']['rich_message'][0]['text']
+            except:
+                message = ""
+
         message = ILLEGAL_CHARACTERS_RE.sub(r'', message)
         # postid
         postid = comet_sections_[
             'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['subscription_target_id']
         # actorid
         pageid = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['id']
-        # comment_count
-        comment_count = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comment_count']['total_count']
-        # reaction_count
+        # comment_count 留言
+        try:
+            comment_count = comet_sections_[
+                'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['display_comments_count']['count']
+        except:
+            try:
+                comment_count = comet_sections_[
+                    'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['total_comment_count']
+            except:
+                try:
+                    comment_count = comet_sections_[
+                        'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comment_list_renderer']['feedback']['comment_count']['total_count']
+                except:
+                    comment_count = 0
+
+        # reaction_count 按讚
         reaction_count = comet_sections_[
             'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['reaction_count']['count']
-        # share_count
+        # share_count 分享
         share_count = comet_sections_[
             'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['share_count']['count']
-        # toplevel_comment_count
-        toplevel_comment_count = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['toplevel_comment_count']['count']
         # top_reactions
         top_reactions = comet_sections_[
             'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['cannot_see_top_custom_reactions']['top_reactions']['edges']
@@ -43,7 +60,7 @@ def __resolverEdgesPage__(edge) -> dict:
         feedback_id = comet_sections_['feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['id']
         # url
         url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['url']
-        # cursor
+    # cursor
     except:
         print("此篇文章格式不可抓取")
         writer.writeLogToFile(traceBack=traceback.format_exc())
@@ -55,7 +72,6 @@ def __resolverEdgesPage__(edge) -> dict:
         comment_count = ""
         reaction_count = ""
         share_count = ""
-        toplevel_comment_count = ""
         top_reactions = ""
         feedback_id = ""
         url = ""
@@ -106,7 +122,6 @@ def __resolverEdgesPage__(edge) -> dict:
         "comment_count": comment_count,
         "reaction_count": reaction_count,
         "share_count": share_count,
-        "toplevel_comment_count": toplevel_comment_count,
         "top_reactions": top_reactions,
         "url": url,
         "image_url": image_url,
@@ -115,37 +130,50 @@ def __resolverEdgesPage__(edge) -> dict:
     }
 
     return dict_output
-    # return [name, creation_time, message, postid, pageid,feedback_id, comment_count, reaction_count, share_count, toplevel_comment_count, top_reactions,url,image_url, cursor]
+    # return [name, creation_time, message, postid, pageid,feedback_id, comment_count, reaction_count, share_count, top_reactions,url,image_url, cursor]
 
 
 def __resolverEdgesFeedback__(edge, posts_count) -> dict:
     comet_sections_ = edge['node']['comet_sections']
 
     # 分享者名稱
-    sharer_name = comet_sections_[
-        'content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['name']
+    sharer_name = comet_sections_['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['name']
 
     # 分享時間
-    create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
+    try:
+        create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
+    except:
+        try:
+            create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][1]['story']['creation_time']
+        except:
+            create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][2]['story']['creation_time']
 
     # 分享者id
-    sharer_id = comet_sections_[
-        'content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['id']
+    sharer_id = comet_sections_['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['id']
     # 內容
-    contents_check_point = comet_sections_['content']['story']['message']
-    if not contents_check_point is None:
-        contents = contents_check_point['text']
-    else:
+    contents_check_point = comet_sections_['content']['story']['comet_sections']['message']
+    if contents_check_point is None:
         contents = ""
+    else:
+        try:
+            contents = contents_check_point['story']['message']['text']
+        except:
+            try:
+                contents = contents_check_point['story']['rich_message'][0]['text']
+            except:
+                contents = ""
 
     # 被分享者可能不存在
     # 被分享者名稱(需另外處理)
-    been_sharer_check_point = comet_sections_[
-        'content']['story']['comet_sections']['context_layout']['story']['comet_sections']['title']['story']['title']
-    if not been_sharer_check_point is None:
-        been_sharer_raw_name = been_sharer_check_point['text']
+    # 若是從某人分享到某個單人而非社團的話，只會有名字，不會有ＩＤ
+    been_sharer_check_point = comet_sections_['context_layout']['story']['comet_sections']['title']['story']
+    if 'to' in been_sharer_check_point:
+        been_sharer_raw_name = been_sharer_check_point['to']['name']
         # 被分享者網址
-        been_sharer_id = edge['node']['feedback']['associated_group']['id']
+        if edge['node']['feedback']['associated_group'] is not None:
+            been_sharer_id = edge['node']['feedback']['associated_group']['id']
+        else:
+            been_sharer_id = ""
     else:
         been_sharer_raw_name = ""
         been_sharer_id = ""
@@ -426,6 +454,25 @@ def __resolverEdgesFriendzone__(edge) -> dict:
     profile_url = edge['node']['url']
     cursor = edge['cursor']
     user_id = edge['node']['node']['id']
+
+    if profile_url is None:
+        profile_url = "https://www.facebook.com/profile.php?id=" + user_id
+
+    dict_output = {
+        "name": name,
+        "url": profile_url,
+        "userID": user_id,
+        "cursor": cursor
+    }
+
+    return dict_output
+
+
+def __resolverEdgesGroupMember__(edge) -> dict:
+    name = edge['node']['name']
+    profile_url = edge['node']['url']
+    user_id = edge['node']['id']
+    cursor = edge['cursor']
 
     if profile_url is None:
         profile_url = "https://www.facebook.com/profile.php?id=" + user_id

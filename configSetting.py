@@ -1,11 +1,13 @@
 
 from ioService import reader
-
+from webManager import webDriver
+from typing import Union
 import os
 
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 jsonArrayData = reader.readInputJson()
+feedback_manual = False
 # ---------- input settings ----------
 
 
@@ -22,15 +24,24 @@ else:
 
 # 多執行緒任務中統計進行中數量時每隔多少進行一次顯示
 queue_show_interval = 50
+multithread_median = 50
+multithread_high = 100
 # ---------- tasks settings ----------
 
 
 # ---------- connections settings ----------
 # 發起request若出現異常的重試次數
-retry = 3
+retry = 1
+retry_feedback = 3
 
 # 連線出現延遲時的等待時間
-timeout = 20
+timeout = 10
+timeout_feedback = 40
+
+# 冷卻時間:是否可以關閉proxy使用一次本機公網ip呼叫(單位是秒)
+cooldown_timedelta = 120
+# 發生任何例外錯誤的容忍次數(使用一次本機公網IP後會重新計數)
+exception_max_try = 5
 # ---------- connections settings ----------
 
 
@@ -41,8 +52,11 @@ need_headless = True
 # 分享行為截圖要截前幾名
 screenshot_count = 3
 
-# 隱士等待時間
+# 隱式等待時間
 implicitly_wait = 20
+
+# 所有類型的webDriver type
+allDriverType = Union[webDriver.postsDriver, webDriver.feedbackDriver, webDriver.friendzoneDriver, webDriver.groupMemberDriver]
 # ---------- webDriver settings ----------
 
 

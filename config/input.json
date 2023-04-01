@@ -1,26 +1,24 @@
 {
-    "targetURL":[
-        "https://www.facebook.com/%E7%A5%9E%E5%A5%87%E5%AF%B6%E8%B2%9D-108610155198388/"
+    "targetURL": [
+        "https://www.facebook.com/XiaoShuReading"
     ],
-    "targetName":[
-        "神奇寶貝"
+    "targetName": [
+        "曉書說"
     ],
-    "user":{
-        "account":[
-            "djg18067@xcoxc.com",
+    "user": {
+        "account": [
             "trustme12795@gmail.com",
             "Keyder000@gmail.com",
             "hvu62820@xcoxc.com"
         ],
-        "password":[
-            "zxcvASDF",
-            "asd8354126",
+        "password": [
+            "Asd8354126!!!",
             "K_eyder770512",
             "1qaz2wsx3EDC"
         ]
     },
-    "personProfileDocidTestURL":"https://www.facebook.com/profile.php?id=100000379318468",
-    "isTimeEndToCurrent": false,
-    "searchStartDate" : "2022-06-01 00:00:00",
-    "searchEndDate": "2022-07-01 00:00:00"
+    "personProfileDocidTestURL": "https://www.facebook.com/profile.php?id=100000379318468",
+    "isTimeEndToCurrent": true,
+    "searchStartDate": "2000-01-01 00:00:00",
+    "searchEndDate": "2023-03-23 00:00:00"
 }

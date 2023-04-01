@@ -29,3 +29,11 @@ p.s : input.json 的searchDate ,會提供一個日期限制,久於該日期之�
 2、mergeAllAboutData.py
 
 3、mergeAllFriendData.py
+
+
+
+筆記與踩坑
+
+# multiProcess的應用中,各程序之間不會共用os.environ
+
+# 抓取"文章"的功能中,cursor在抓取到某個時間點之後的文章皆存在過期現象,過期後的cursor有可能直接指向終點或是某一篇特定的文章

@@ -155,9 +155,9 @@ def buildDataParse(rawDataList, subDir) -> None:
                 else:
                     temp_name = ""
                     temp_name = share_data["been_sharer_raw_name"]
-                    startPoint = temp_name.find(":")
-                    endPoint = temp_name.find(".")
-                    temp_name = temp_name[startPoint+2:endPoint]
+                    # startPoint = temp_name.find(":")
+                    # endPoint = temp_name.find(".")
+                    # temp_name = temp_name[startPoint+2:endPoint]
                     been_sharer_name.append(temp_name)
 
     df = pd.DataFrame({
@@ -696,6 +696,31 @@ def buildFriendzoneData(FriendzoneDataList, subDir, targetURL) -> None:
         "工作": work_list,
         "工作起訖時間": work_date_list,
         "連結": profile_list
+    })
+
+    df = df.reset_index()  # 重新定義流水號
+    df.drop('index', inplace=True, axis=1)
+    writer.pdToExcel(des=excel_file, df=df, sheetName="sheet1")
+
+
+def buildGroupMemberData(GroupMemberDataList, subDir) -> None:
+
+    excel_file = './output/' + subDir + '/groupMember.xlsx'
+    name_list = []
+    url_list = []
+    id_list = []
+
+    for data in GroupMemberDataList:
+
+        name_list.append(data['name'])
+        url_list.append(data['url'])
+        id_list.append(data['userID'])
+
+    df = pd.DataFrame({
+        "姓名": name_list,
+        "用戶編號": id_list,
+        "個人頁連結": url_list,
+
     })
 
     df = df.reset_index()  # 重新定義流水號

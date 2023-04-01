@@ -5,7 +5,7 @@ import pandas as pd
 import time
 import configSetting
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from ioService import writer, reader
 
 
@@ -35,7 +35,7 @@ def detectURL(str: str) -> str:
     return ((str.find("http://") == -1) and (str.find("https://") == -1))
 
 
-def dateCompare(targetTimeStamp) -> tuple[bool, bool]:
+def dateCompare(targetTimeStamp) -> tuple[bool, bool, str]:
     user_start_time_obj = datetime.strptime(configSetting.jsonArrayData["searchStartDate"], "%Y-%m-%d %H:%M:%S")
     user_end_time_obj = datetime.strptime(configSetting.jsonArrayData["searchEndDate"], "%Y-%m-%d %H:%M:%S")
 
@@ -51,9 +51,9 @@ def dateCompare(targetTimeStamp) -> tuple[bool, bool]:
         arrive_first_catch_time = False
 
     if (target_time_obj > user_start_time_obj) and (target_time_obj < user_end_time_obj):
-        return True, arrive_first_catch_time
+        return True, arrive_first_catch_time, target_time
     else:
-        return False, arrive_first_catch_time
+        return False, arrive_first_catch_time, target_time
 
     # # True : 還能抓 False:不能抓
     # return targetTimeObj > userTimeObj
@@ -79,3 +79,15 @@ def parseFBUserID(url) -> str:
     else:
         userid = url[pos+4:]
         return userid
+
+
+def checkTimeCooldown(recordTime: datetime) -> bool:
+    time_now = datetime.now()
+
+    time_delta = time_now - recordTime
+    cooldown = configSetting.cooldown_timedelta
+
+    if cooldown <= time_delta.seconds:
+        return True
+    else:
+        return False

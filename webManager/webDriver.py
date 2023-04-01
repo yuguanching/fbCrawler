@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
+from typing import Union
 from abc import ABC, abstractmethod
 from webManager import customWait
 from ioService import writer
@@ -20,6 +21,9 @@ import configSetting
 
 # 關閉web driver的log訊息
 os.environ['WDM_LOG_LEVEL'] = '0'
+
+
+# 有新的driver建立時要去configSetting.py登記型別
 
 
 def loginForSeleniumWire(driver, accountCounter, loginURL):
@@ -182,7 +186,6 @@ class feedbackDriver(customWebDriver):
         self.driver.get(pageURL)
         # 隱式等待
         self.driver.implicitly_wait(configSetting.implicitly_wait)
-
         temp = []
         try:
             for x in range(1, 5):
@@ -203,7 +206,7 @@ class feedbackDriver(customWebDriver):
                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
 
                 share_point_locator = (
-                    By.XPATH, ".//div[@class='xnfveip']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j x1jfb8zj']")
+                    By.XPATH, ".//div[@class='x1n2onr6']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j x1jfb8zj']")
                 try:
                     share_list_point = WebDriverWait(asp, 5).until(
                         EC.presence_of_all_elements_located(share_point_locator))
@@ -218,13 +221,16 @@ class feedbackDriver(customWebDriver):
                 else:
                     self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", share_list_point[0])
                     text_check = ""
+                    has_share_text = False
                     for slp in share_list_point:
                         text_check = slp.text
+                        if "分享" in text_check:
+                            has_share_text = True
                         hover = ActionChains(self.driver).move_to_element(slp)
                         hover.perform()
                         time.sleep(time_pause)
 
-                    if "分享" not in text_check:
+                    if not has_share_text:
                         print("鎖定的文章只有留言節點,沒有分享節點,無法觸發js加載,搜索其他文章來觸發分享節點的js")
                         continue
                     new_source = self.driver.page_source
@@ -331,3 +337,54 @@ class screenshotDriver(customWebDriver):
 
         time.sleep(time_pause)
         return
+
+
+class groupMemberDriver(customWebDriver):
+    """取得社團成員資料相關docid資源的driver"""
+
+    def _getSource(self, pageURL):
+        print("開始動態加載社團成員資料要用的js")
+        new_source = ""
+        time_pause = 2
+        self.driver.get(pageURL)
+        # 隱式等待
+        self.driver.implicitly_wait(configSetting.implicitly_wait)
+        time.sleep(time_pause)
+        try:
+            banner_element_locator = (By.XPATH,
+                                      "//div[@class='xng8ra x6ikm8r x10wlt62 x1n2onr6 xh8yej3 x1ja2u2z x1a2a7pz' and @role='tablist']//descendant::a[@role='tab']")
+            banner_element_points = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_all_elements_located(banner_element_locator))
+
+            for bep in banner_element_points:
+                if bep.text == "用戶":
+                    bep.click()
+                else:
+                    continue
+                # hover = ActionChains(driver).move_to_element(bep)
+                # hover.perform()
+
+            time.sleep(time_pause)
+            new_source = self.driver.page_source
+        except Exception as e:
+            print("動態加載社團成員資料 js 發生錯誤: ", str(e))
+            print("沒有抓到朋友群加載的js,可能是網頁失效或是登入帳號失效導致,直接回傳空字串")
+            time.sleep(time_pause)
+            return new_source
+
+        if len(new_source) > 0:
+            print("有抓到社團成員資料 js")
+        else:
+            print("沒有抓到社團成員資料 js,回傳空字串")
+        time.sleep(time_pause)
+        return new_source
+
+    def catchSpecialJsSource(self, pageURL):
+
+        self.driver.get(pageURL)
+        # 隱式等待
+        self.driver.implicitly_wait(configSetting.implicitly_wait)
+        time.sleep(1)
+        new_source = self.driver.page_source
+
+        return new_source

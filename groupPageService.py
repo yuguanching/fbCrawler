@@ -1,4 +1,4 @@
-from helper import Auxiliary, proxy, idFetcher, crawlRequests
+from helper import helper, Auxiliary, proxy, idFetcher, crawlRequests
 from ioService import parser, writer, reader
 from threading import Thread
 from webManager import webDriver, getFbCSRFToken
@@ -14,7 +14,8 @@ import traceback
 import configSetting
 
 
-def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
+def runGroupPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
+    # 社團的docid抓取和粉專的抓取方式與細節一樣
     """
     jsonArrayDataSub: 已經透過多行程分配過的輸入資料
     """
@@ -39,28 +40,20 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
         os.environ['proxy_list'] = ip_list_str
 
         print(f"開始抓取 {target_name} 的文章資料")
-        page_id, page_docid, page_req_name, is_been_banned = idFetcher.fetchEigenvaluesAndID(
-            func=idFetcher.__getPageID__, customDriver=posts_driver, errString="未能取得文章的docid 或 pageid,嘗試換其他帳號試試", pageURL=target_url, checkOption=2)
+        group_id, group_page_docid, page_req_name, is_been_banned = idFetcher.fetchEigenvaluesAndID(
+            func=idFetcher.__getGroupPageID__, customDriver=posts_driver, errString="未能取得文章的docid 或 groupid,嘗試換其他帳號試試", pageURL=target_url, checkOption=2)
         if is_been_banned:
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
-        # page_id = "100053749636849"
-        # page_docid = "9686908411334909"
-        # page_req_name = "ProfileCometTimelineFeedRefetchQuery"
+        # group_id = "1331244804366090"
+        # group_page_docid = "5390522427716337"
+        # page_req_name = "GroupsCometFeedRegularStoriesPaginationQuery"
 
-        feedback_id_list = []
-        if configSetting.feedback_manual is True:  # 是否手動餵檔單獨處理分享者資料
-            with open('./temp/feedback_id_list.txt', 'r') as file:
-                fil = file.read()
-            fil = fil.replace("\'", "", -1)
-            fil_res = fil.strip('][').split(', ')
-            feedback_id_list = fil_res
-        else:
-            post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, docID=page_docid, reqName=page_req_name,
-                                                     proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
-            feedback_id_list = parser.buildCollectData(post_list, target_name)
-            print(f"{target_name}的feedback_id總數: {len(feedback_id_list)}")
-        writer.writeLogToFile(feedback_id_list)
+        post_list = crawlRequests.crawlGroupPosts(pageURL=target_url, groupPageID=group_id, groupDocID=group_page_docid, reqName=page_req_name,
+                                                  proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
+        feedback_id_list = parser.buildCollectData(post_list, target_name)
+        print(f"{target_name}的feedback_id總數: {len(feedback_id_list)}")
+
         # 外部先取得feedback的docid,避免多線程重複抓取
         _, feedback_docid, req_name, is_been_banned = idFetcher.fetchEigenvaluesAndID(
             func=idFetcher.__getDocIDFeedback__, customDriver=feedback_driver, errString="未能取得分享的docid,嘗試換其他帳號試試", pageURL=target_url, checkOption=1)
@@ -102,8 +95,8 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
         else:
             print(f"行程{processNum}-> 沒有抓到個人關於資訊的docid代號,故結束抓取")
 
-    posts_driver.clearDriver()
     feedback_driver.clearDriver()
+    posts_driver.clearDriver()
     return f"行程{processNum}-> 全部執行完成"
 
 
@@ -111,7 +104,7 @@ if __name__ == '__main__':
     Auxiliary.createIndexExcelAndRead()
     process_worker = configSetting.process_worker
 
-    # params, cookie_xs, cookie_cUser = getFbCSRFToken.getCsrfToken()
+    # params,cookie_xs,cookie_cUser = getFbCSRFToken.getCsrfToken()
     # fb_dtsg = params['fb_dtsg']
     # cookie_str = f";{cookie_xs['name']}={cookie_xs['value']};{cookie_cUser['name']}={cookie_cUser['value']};"
     fb_dtsg = ""
@@ -133,7 +126,7 @@ if __name__ == '__main__':
         for i in range(len(args_list)):
             print(f"任務 {i} 植入任務列表")
             writer.writeLogToFile("process " + str(i) + " : " + json.dumps(args_list[i]['targetName'], ensure_ascii=False))
-            process_future = executor.submit(runFansPage, args_list[i], fb_dtsg, i)
+            process_future = executor.submit(runGroupPage, args_list[i], fb_dtsg, i)
             process_futures.append(process_future)
             time.sleep(i/2)  # 避免短時間一次執行多條程序所作的緩衝
         for future in as_completed(process_futures):

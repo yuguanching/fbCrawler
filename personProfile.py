@@ -1,13 +1,10 @@
-from helper import helper, Auxiliary, thread, proxy
+from helper import Auxiliary, proxy, idFetcher, crawlRequests
 from ioService import parser, writer, reader
-from threading import Thread
 from webManager import webDriver, getFbCSRFToken
-from datetime import datetime
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 import json
-import pandas as pd
 import os
 import time
 import traceback
@@ -40,14 +37,14 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
         # # 測速的開始時間戳記
         print(f"開始抓取 {target_name} 的文章資料")
 
-        page_id, page_docid, page_req_name, page_is_been_banned = helper.fetchEigenvaluesAndID(
-            func=helper.__getPageID__, customDriver=posts_driver, errString="未能取得文章的docid 或 pageid,嘗試換其他帳號試試", pageURL=target_url, checkOption=2)
+        page_id, page_docid, page_req_name, page_is_been_banned = idFetcher.fetchEigenvaluesAndID(
+            func=idFetcher.__getPageID__, customDriver=posts_driver, errString="未能取得文章的docid 或 pageid,嘗試換其他帳號試試", pageURL=target_url, checkOption=2)
         if page_is_been_banned:
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
 
-        post_list = helper.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name, docID=page_docid,
-                                          proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
+        post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name, docID=page_docid,
+                                                 proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
         feedback_id_list = parser.buildCollectData(post_list, target_name)
         print(f"{target_name} 文章的feedback_id數量: {len(feedback_id_list)}")
 
@@ -55,7 +52,7 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
         # 若是可以從profile個人頁連結取到userid,就省略爬蟲的動作
         # user_id = Auxiliary.parseFBUserID(targetURL)
         # if user_id == "":
-        #     user_id, about_docid_temp, about_req_name, about_isBeenBanned = helper.fetchEigenvaluesAndID(func=helper.__getUserIDSection__, customDriver=postsDriver, errString="未能取得個人關於資訊的docid或userid,嘗試換其他帳號試試",pageURL=targetURL, checkOption=1)
+        #     user_id, about_docid_temp, about_req_name, about_isBeenBanned = idFetcher.fetchEigenvaluesAndID(func=idFetcher.__getUserIDSection__, customDriver=postsDriver, errString="未能取得個人關於資訊的docid或userid,嘗試換其他帳號試試",pageURL=targetURL, checkOption=1)
         #     if about_isBeenBanned :
         #         writer.writeLogToFile(f"目標{targetName}已被臉書封鎖,留下紀錄待處理")
         #         continue
@@ -63,25 +60,25 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
         #     pass
         # ----------------------------------------------------------
 
-        user_id, _, about_req_name, about_is_been_banned = helper.fetchEigenvaluesAndID(
-            func=helper.__getUserIDSection__, customDriver=posts_driver, errString="未能取得個人關於資訊的docid或userid,嘗試換其他帳號試試", pageURL=target_url, checkOption=1)
+        user_id, _, about_req_name, about_is_been_banned = idFetcher.fetchEigenvaluesAndID(
+            func=idFetcher.__getUserIDSection__, customDriver=posts_driver, errString="未能取得個人關於資訊的docid或userid,嘗試換其他帳號試試", pageURL=target_url, checkOption=1)
         if about_is_been_banned:
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
 
         print(f"開始抓取{target_name}的個人關於資料")
-        about_content_list = helper.crawlSectionAbout(pageURL=target_url, fbDTSG=fbDTSG, docID=aboutDocID,
-                                                      userID=user_id, reqName=about_req_name, targetName=target_name, processNum=processNum, friendDict=None)
+        about_content_list = crawlRequests.crawlSectionAbout(pageURL=target_url, fbDTSG=fbDTSG, docID=aboutDocID,
+                                                             userID=user_id, reqName=about_req_name, targetName=target_name, processNum=processNum, friendDict=None)
         parser.buildAboutData(about_content_list, target_name, target_url)
 
-        friendzone_id, _, friendzone_req_name, friendzone_is_been_banned = helper.fetchEigenvaluesAndID(
-            func=helper.__getFriendzoneNovSection__, customDriver=friendzone_driver, errString="未能取得朋友欄目的docid 或 friendzone_id,嘗試換其他帳號試試", pageURL=target_url, checkOption=0)
+        friendzone_id, _, friendzone_req_name, friendzone_is_been_banned = idFetcher.fetchEigenvaluesAndID(
+            func=idFetcher.__getFriendzoneNovSection__, customDriver=friendzone_driver, errString="未能取得朋友欄目的docid 或 friendzone_id,嘗試換其他帳號試試", pageURL=target_url, checkOption=0)
         if friendzone_is_been_banned:
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
 
-        friendzone_list = helper.crawlFriendzone(pageURL=target_url, friendzoneID=friendzone_id, docID=friendzoneDocID,
-                                                 reqName=friendzone_req_name, proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
+        friendzone_list = crawlRequests.crawlFriendzone(pageURL=target_url, friendzoneID=friendzone_id, docID=friendzoneDocID,
+                                                        reqName=friendzone_req_name, proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
         friendzone_data_list = []
         writer.writeLogToFile(f"行程{processNum}-> {target_name} 初步統計有 {len(friendzone_list)} 個朋友")
         if aboutDocID != "":
@@ -89,15 +86,15 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
                 q_data = Queue()  # 幫助內部計數用
                 q_signal = Queue()  # 信號傳遞交換區
                 thread_workers = int(len(friendzone_list) ** 0.5) * 3
-                if thread_workers > 80:
-                    thread_workers = 80
-                elif thread_workers > 50:
-                    thread_workers = 50
+                if thread_workers > configSetting.multithread_high:
+                    thread_workers = configSetting.multithread_high
+                elif thread_workers > configSetting.multithread_median:
+                    thread_workers = configSetting.multithread_median
                 with ThreadPoolExecutor(max_workers=thread_workers) as executor:
                     futures = []
                     print(f"行程{processNum}-> 啟動 {target_name} 的朋友群抓取線程共 {thread_workers} 條")
                     for friend in friendzone_list:
-                        future = executor.submit(helper.crawlSectionAbout, friend["url"], fbDTSG, aboutDocID,
+                        future = executor.submit(crawlRequests.crawlSectionAbout, friend["url"], fbDTSG, aboutDocID,
                                                  friend["userID"], about_req_name, target_name, processNum, friend, q_data, q_signal)
                         futures.append(future)
                     for future in as_completed(futures):
@@ -148,10 +145,10 @@ if __name__ == '__main__':
     # 先取一次profile的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的userid不會使用,故不檢查
     # 先取一次朋友群的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的friendzone_id不會使用,故不檢查
     get_docid_profile_url = configSetting.jsonArrayData['personProfileDocidTestURL']
-    user_id, about_docid, _, _ = helper.fetchEigenvaluesAndID(
-        func=helper.__getUserIDSection__, customDriver=posts_driver, errString="未能取得個人關於資訊的docid,嘗試換其他帳號試試", pageURL=get_docid_profile_url, checkOption=1)
-    friendzone_id, friendzone_docid, friendzone_req_name, _ = helper.fetchEigenvaluesAndID(
-        func=helper.__getFriendzoneNovSection__, customDriver=friendzone_driver, errString="未能取得朋友欄目的docid,嘗試換其他帳號試試", pageURL=get_docid_profile_url, checkOption=1)
+    user_id, about_docid, _, _ = idFetcher.fetchEigenvaluesAndID(
+        func=idFetcher.__getUserIDSection__, customDriver=posts_driver, errString="未能取得個人關於資訊的docid,嘗試換其他帳號試試", pageURL=get_docid_profile_url, checkOption=1)
+    friendzone_id, friendzone_docid, friendzone_req_name, _ = idFetcher.fetchEigenvaluesAndID(
+        func=idFetcher.__getFriendzoneNovSection__, customDriver=friendzone_driver, errString="未能取得朋友欄目的docid,嘗試換其他帳號試試", pageURL=get_docid_profile_url, checkOption=1)
 
     os.environ.pop("account_number_now")
     posts_driver.clearDriver()
