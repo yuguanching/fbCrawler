@@ -13,6 +13,8 @@ def __resolverEdgesPage__(edge) -> dict:
     # name
     try:
         name = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['name']
+
+        story_id = edge['node']['id']
         # creation_time
         creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
         # message
@@ -62,9 +64,9 @@ def __resolverEdgesPage__(edge) -> dict:
         url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['url']
     # cursor
     except:
-        print("此篇文章格式不可抓取")
-        writer.writeLogToFile(traceBack=traceback.format_exc())
+        writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 錯誤細節待查：{traceback.format_exc()}")
         name = ""
+        story_id = ""
         creation_time = 0
         message = ""
         postid = ""
@@ -95,7 +97,7 @@ def __resolverEdgesPage__(edge) -> dict:
                 try:
                     image_url = attach_obj['all_subattachments']['nodes'][0]['media']['image']['uri']
                 except:
-                    writer.writeLogToFile(traceBack=traceback.format_exc())
+                    pass
                 finally:
                     image_url = ""
             else:
@@ -114,6 +116,7 @@ def __resolverEdgesPage__(edge) -> dict:
 
     dict_output = {
         "name": name,
+        "story_id": story_id,
         "creation_time": creation_time,
         "message": message,
         "postid": postid,

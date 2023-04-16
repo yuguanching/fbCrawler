@@ -1,9 +1,10 @@
+import time
+
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-import time
 
 
 # 自定義的webDriverWait,在滾動時使用,確認若滾動已產生新的資料,則繼續滾動,否則等待

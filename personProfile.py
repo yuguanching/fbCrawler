@@ -1,14 +1,14 @@
-from helper import Auxiliary, proxy, idFetcher, crawlRequests
-from ioService import parser, writer, reader
-from webManager import webDriver, getFbCSRFToken
-from queue import Queue
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-
 import json
 import os
 import time
 import traceback
 import configSetting
+
+from helper import Auxiliary, proxy, idFetcher, crawlRequests, thread
+from ioService import parser, writer, reader
+from webManager import webDriver, getFbCSRFToken
+from queue import Queue
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 
 def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNum) -> None:
@@ -43,9 +43,17 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
 
+        feedback_id_list = []
+        story_id_list = []
+        futures = []
+        friendzone_data_list = []
+
         post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name, docID=page_docid,
                                                  proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
-        feedback_id_list = parser.buildCollectData(post_list, target_name)
+        parser.buildCollectData(post_list, target_name)
+        for posts in post_list:
+            feedback_id_list.append(posts['feedback_id'])
+            story_id_list.append(posts['story_id'])
         print(f"{target_name} 文章的feedback_id數量: {len(feedback_id_list)}")
 
         # ----------------------------------------------------------
@@ -67,7 +75,7 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
             continue
 
         print(f"開始抓取{target_name}的個人關於資料")
-        about_content_list = crawlRequests.crawlSectionAbout(pageURL=target_url, fbDTSG=fbDTSG, docID=aboutDocID,
+        about_content_list = crawlRequests.crawlSectionAbout(pageURL=target_url, usersCount=0, fbDTSG=fbDTSG, docID=aboutDocID,
                                                              userID=user_id, reqName=about_req_name, targetName=target_name, processNum=processNum, friendDict=None)
         parser.buildAboutData(about_content_list, target_name, target_url)
 
@@ -79,22 +87,16 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
 
         friendzone_list = crawlRequests.crawlFriendzone(pageURL=target_url, friendzoneID=friendzone_id, docID=friendzoneDocID,
                                                         reqName=friendzone_req_name, proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
-        friendzone_data_list = []
         writer.writeLogToFile(f"行程{processNum}-> {target_name} 初步統計有 {len(friendzone_list)} 個朋友")
         if aboutDocID != "":
             if len(friendzone_list) != 0:
                 q_data = Queue()  # 幫助內部計數用
                 q_signal = Queue()  # 信號傳遞交換區
-                thread_workers = int(len(friendzone_list) ** 0.5) * 3
-                if thread_workers > configSetting.multithread_high:
-                    thread_workers = configSetting.multithread_high
-                elif thread_workers > configSetting.multithread_median:
-                    thread_workers = configSetting.multithread_median
+                thread_workers = thread.generateThreadWorkers(len(feedback_id_list))
                 with ThreadPoolExecutor(max_workers=thread_workers) as executor:
-                    futures = []
                     print(f"行程{processNum}-> 啟動 {target_name} 的朋友群抓取線程共 {thread_workers} 條")
-                    for friend in friendzone_list:
-                        future = executor.submit(crawlRequests.crawlSectionAbout, friend["url"], fbDTSG, aboutDocID,
+                    for friend_count, friend in enumerate(friendzone_list):
+                        future = executor.submit(crawlRequests.crawlSectionAbout, friend["url"], friend_count, fbDTSG, aboutDocID,
                                                  friend["userID"], about_req_name, target_name, processNum, friend, q_data, q_signal)
                         futures.append(future)
                     for future in as_completed(futures):
@@ -105,6 +107,7 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
                             writer.writeLogToFile(f"行程{processNum}-> 詳細錯誤原因: {traceback.format_exc()}")
                 writer.writeLogToFile(f"行程{processNum}-> {target_name} 結束後統計:{q_data.qsize()}")
                 del q_data
+                del q_signal
             print(
                 f"************************** <行程{processNum}-> 蒐集完成, {target_name} 共蒐集到{len(friendzone_data_list)}筆朋友關於資料> **************************")
             parser.buildFriendzoneData(friendzone_data_list, target_name, target_url)
@@ -114,7 +117,6 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
 
     posts_driver.clearDriver()
     friendzone_driver.clearDriver()
-    print(f"行程{processNum}-> 全部執行完成")
     return f"行程{processNum}-> 全部執行完成"
 
 
@@ -127,10 +129,11 @@ if __name__ == '__main__':
     cookie_str = f" ;{cookie_xs['name']}={cookie_xs['value']}; {cookie_cUser['name']}={cookie_cUser['value']};"
     fb_dtsg = params['fb_dtsg']
 
-    target_urls_split = Auxiliary.split(configSetting.jsonArrayData['targetURL'], process_worker)
-    target_names_split = Auxiliary.split(configSetting.jsonArrayData['targetName'], process_worker)
+    target_urls_split = Auxiliary.split(configSetting.json_array_data['targetURL'], process_worker)
+    target_names_split = Auxiliary.split(configSetting.json_array_data['targetName'], process_worker)
     args_list = []
     result_list = []
+    process_futures = []
 
     # customDriver 初始化
     posts_driver = webDriver.postsDriver(driver=None, options=None, isLogin=False)
@@ -144,7 +147,7 @@ if __name__ == '__main__':
     # 只為了取docid 特徵值,為避免搜索清單的項目有a.被FB封鎖的 b.沒有任何朋友的 ,故自行於配置檔設定任意一個活著且含朋友群的pofile連結
     # 先取一次profile的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的userid不會使用,故不檢查
     # 先取一次朋友群的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的friendzone_id不會使用,故不檢查
-    get_docid_profile_url = configSetting.jsonArrayData['personProfileDocidTestURL']
+    get_docid_profile_url = configSetting.json_array_data['personProfileDocidTestURL']
     user_id, about_docid, _, _ = idFetcher.fetchEigenvaluesAndID(
         func=idFetcher.__getUserIDSection__, customDriver=posts_driver, errString="未能取得個人關於資訊的docid,嘗試換其他帳號試試", pageURL=get_docid_profile_url, checkOption=1)
     friendzone_id, friendzone_docid, friendzone_req_name, _ = idFetcher.fetchEigenvaluesAndID(
@@ -155,13 +158,12 @@ if __name__ == '__main__':
     friendzone_driver.clearDriver()
 
     for i in range(process_worker):
-        jsonArrayData_copy_temp = configSetting.jsonArrayData.copy()
-        jsonArrayData_copy_temp['targetURL'] = target_urls_split[i]
-        jsonArrayData_copy_temp['targetName'] = target_names_split[i]
-        args_list.append(jsonArrayData_copy_temp)
+        json_array_data_copy_temp = configSetting.json_array_data.copy()
+        json_array_data_copy_temp['targetURL'] = target_urls_split[i]
+        json_array_data_copy_temp['targetName'] = target_names_split[i]
+        args_list.append(json_array_data_copy_temp)
 
     with ProcessPoolExecutor(max_workers=process_worker) as executor:
-        process_futures = []
         print(f"已配置{process_worker}個處理行程等待執行")
         for i in range(len(args_list)):
             print(f"任務 {i} 植入任務列表")

@@ -13,8 +13,8 @@ def createIndexExcelAndRead() -> None:
 
     # 創建目標粉專的目錄excel
     index_df = pd.DataFrame({
-        '粉專': configSetting.jsonArrayData['targetName'],
-        '連結': configSetting.jsonArrayData['targetURL']
+        '粉專': configSetting.json_array_data['targetName'],
+        '連結': configSetting.json_array_data['targetURL']
     })
     writer.pdToExcel(des='./output/index.xlsx', df=index_df, sheetName="sheet1")
     print("已完成目標粉專的目錄建置")
@@ -36,11 +36,11 @@ def detectURL(str: str) -> str:
 
 
 def dateCompare(targetTimeStamp) -> tuple[bool, bool, str]:
-    user_start_time_obj = datetime.strptime(configSetting.jsonArrayData["searchStartDate"], "%Y-%m-%d %H:%M:%S")
-    user_end_time_obj = datetime.strptime(configSetting.jsonArrayData["searchEndDate"], "%Y-%m-%d %H:%M:%S")
+    user_start_time_obj = datetime.strptime(configSetting.json_array_data["searchStartDate"], "%Y-%m-%d %H:%M:%S")
+    user_end_time_obj = datetime.strptime(configSetting.json_array_data["searchEndDate"], "%Y-%m-%d %H:%M:%S")
 
     # 2022/10/29 加入是否從當前時間點作為起點的開關
-    if configSetting.jsonArrayData['isTimeEndToCurrent']:
+    if configSetting.json_array_data['isTimeEndToCurrent']:
         user_end_time_obj = datetime.now()
 
     target_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(targetTimeStamp)))

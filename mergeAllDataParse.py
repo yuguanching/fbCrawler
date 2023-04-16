@@ -1,14 +1,15 @@
+import pandas as pd
+import configSetting
+
 from ioService import writer, reader, parser
 from collections import Counter
 from helper import Auxiliary
-import pandas as pd
-import configSetting
 
 
 def mergeAllDataParseToExcel() -> None:
     file_name = "dataParse.xlsx"
 
-    target_names = configSetting.jsonArrayData['targetName']
+    target_names = configSetting.json_array_data['targetName']
     all_sharer_data_list = []
     all_sharer_list = []
     all_been_sharer_list = []
@@ -39,7 +40,7 @@ def mergeAllDataParseToExcel() -> None:
 def mergeAllTagToExcel() -> None:
     file_name = "tag.xlsx"
 
-    target_names = configSetting.jsonArrayData['targetName']
+    target_names = configSetting.json_array_data['targetName']
     all_raw_sentences_list = []
     all_sentences_list = []
     all_words_list = []

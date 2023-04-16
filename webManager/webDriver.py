@@ -1,3 +1,9 @@
+import os
+import random
+import time
+import traceback
+import configSetting
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -13,11 +19,7 @@ from typing import Union
 from abc import ABC, abstractmethod
 from webManager import customWait
 from ioService import writer
-import os
-import random
-import time
-import traceback
-import configSetting
+
 
 # 關閉web driver的log訊息
 os.environ['WDM_LOG_LEVEL'] = '0'
@@ -29,8 +31,8 @@ os.environ['WDM_LOG_LEVEL'] = '0'
 def loginForSeleniumWire(driver, accountCounter, loginURL):
 
     # 登入的帳號與密碼
-    username_list = configSetting.jsonArrayData['user']['account']
-    password_list = configSetting.jsonArrayData['user']['password']
+    username_list = configSetting.json_array_data['user']['account']
+    password_list = configSetting.json_array_data['user']['password']
     account = username_list[accountCounter]
     pwd = password_list[accountCounter]
     print("開始登入,身分 :", account)
@@ -120,8 +122,8 @@ class customWebDriver(ABC):
         Args:
             accountCounter: 當前是使用第幾組帳密做登入
         """
-        username_list = configSetting.jsonArrayData['user']['account']
-        password_list = configSetting.jsonArrayData['user']['password']
+        username_list = configSetting.json_array_data['user']['account']
+        password_list = configSetting.json_array_data['user']['password']
         account = username_list[accountCounter]
         pwd = password_list[accountCounter]
         print("開始登入,身分 :", account)

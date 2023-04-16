@@ -26,7 +26,7 @@ from PIL import Image
 os.environ['WDM_LOG_LEVEL'] = '0'
 
 
-def buildCollectData(rawDataList, subDir, dropNA=False) -> list:
+def buildCollectData(rawDataList, subDir, dropNA=False):
 
     excel_file = './output/' + subDir + '/collectData.xlsx'
     date = []
@@ -37,9 +37,6 @@ def buildCollectData(rawDataList, subDir, dropNA=False) -> list:
     share_count = []
     content = []
     urls = []
-
-    # 後續抓取分享需要用到的id標記
-    feedback_id = []
 
     print(f"開始產生{subDir}的文章統計資料")
 
@@ -66,9 +63,6 @@ def buildCollectData(rawDataList, subDir, dropNA=False) -> list:
         # 抓取分享數
         share_count.append(raw_data["share_count"])
 
-        # 抓取文章的分享id標記
-        feedback_id.append(raw_data["feedback_id"])
-
         # 抓取文章網址
         urls.append(raw_data["url"])
 
@@ -90,8 +84,41 @@ def buildCollectData(rawDataList, subDir, dropNA=False) -> list:
 
     writer.pdToExcel(des=excel_file, df=df, sheetName="collection", autoFitIsNeed=False)
 
-    print(f"{subDir}的文章統計資料寫入完成,導出分享id標記陣列")
-    return feedback_id
+    print(f"{subDir}的文章統計資料寫入完成")
+
+
+def extendCommentData(commentDataList, subDir):
+    excel_file = './output/' + subDir + '/collectData.xlsx'
+    comment_data = []
+    comment_posts_count = []
+
+    for articleComments in commentDataList:
+        for commentData in articleComments:
+            msg = commentData['content']
+            comment_posts_count.append(commentData['posts_count'])
+            urls = re.findall('http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', msg)
+            if len(urls) <= 0:
+                comment_data.append("")
+            else:
+                comment_data.append(urls[0])
+
+    df = pd.DataFrame({
+        '編號': comment_posts_count,
+        '第三方連結': comment_data
+    })
+    # 排序用, 用完就刪掉
+    df = df.sort_values('編號')
+    df.drop('編號', inplace=True, axis=1)
+    with pd.ExcelWriter(excel_file, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
+        df.to_excel(writer,
+                    encoding='utf_8_sig',
+                    index=False,
+                    sheet_name="collection",
+                    startcol=9)
+    filename_csv = excel_file.replace(".xlsx", "_" + "collection" + ".csv")
+    csv_df = pd.read_csv(filename_csv)
+    csv_df.insert(loc=8, column="第三方連結", value=df['第三方連結'])
+    csv_df.to_csv(filename_csv, index=False, encoding='utf_8_sig')
 
 
 def buildDataParse(rawDataList, subDir) -> None:
@@ -337,10 +364,10 @@ def buildTag(subDir) -> None:
         tagList_df = pd.DataFrame.from_dict(sentence_counter, orient='index').reset_index()
         tagList_df = tagList_df.set_axis(['斷句', '使用熱度'], axis=1)
         tagList_df = tagList_df.sort_values('使用熱度', ascending=False)
-        writer.pdToExcel(des=tag_file, df=tagList_df, sheetName="sentence", indexIsNeed=False, mode='a')
+        writer.pdToExcel(des=tag_file, df=tagList_df, sheetName="sentence", autoFitIsNeed=False, indexIsNeed=False, mode='a')
     else:
         empty_df = pd.DataFrame(columns=['斷句', '使用熱度'])
-        writer.pdToExcel(des=tag_file, df=empty_df, sheetName="sentence", indexIsNeed=False, mode='a')
+        writer.pdToExcel(des=tag_file, df=empty_df, sheetName="sentence", autoFitIsNeed=False, indexIsNeed=False, mode='a')
 
     word_counter = Counter()
     jieba.load_userdict("./config/jieba/dict.txt.big.txt")
@@ -362,7 +389,7 @@ def buildTag(subDir) -> None:
             "詞頻": []
         })
     word_list_df = word_list_df.sort_values('詞頻', ascending=False)
-    writer.pdToExcel(des=tag_file, df=word_list_df, sheetName="word", indexIsNeed=False, mode='a')
+    writer.pdToExcel(des=tag_file, df=word_list_df, sheetName="word", autoFitIsNeed=False, indexIsNeed=False, mode='a')
 
     print("斷詞表建置完成")
     createWordCloud(subDir=subDir, counter=word_counter)

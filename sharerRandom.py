@@ -1,15 +1,14 @@
-
-from ioService import writer, reader
-
 import pandas as pd
 import configSetting
+
+from ioService import writer, reader
 
 
 def sharerPartition() -> None:
 
     file_name = "dataParse.xlsx"
 
-    target_names = configSetting.jsonArrayData['targetName']
+    target_names = configSetting.json_array_data['targetName']
 
     for sub_dir in target_names:
         print(f"{sub_dir} 開始以sharer sheet 進行分群")

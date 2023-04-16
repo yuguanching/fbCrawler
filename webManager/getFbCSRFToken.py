@@ -1,19 +1,21 @@
+import time
+import os
+import traceback
+import configSetting
+
 from seleniumwire import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from ioService import writer, reader
 from helper import Auxiliary
 from webManager import webDriver
-import time
-import os
-import traceback
-import configSetting
+
 
 os.environ['WDM_LOG_LEVEL'] = '0'
 
 
 def getCsrfToken():
     target = None
-    target_url = configSetting.jsonArrayData['targetURL']
+    target_url = configSetting.json_array_data['targetURL']
     count = 0
     # ------------------------Web driver settings-------------------------------------
     options = webdriver.ChromeOptions()

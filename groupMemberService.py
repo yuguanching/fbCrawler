@@ -1,3 +1,8 @@
+import pandas as pd
+import os
+import configSetting
+
+
 from helper import helper, Auxiliary, thread, proxy, idFetcher, crawlRequests
 from ioService import parser, writer, reader
 from threading import Thread
@@ -5,13 +10,6 @@ from webManager import webDriver, getFbCSRFToken
 from datetime import datetime
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-
-import json
-import pandas as pd
-import os
-import time
-import traceback
-import configSetting
 
 
 def runGroupMember(groupMemberDocID):

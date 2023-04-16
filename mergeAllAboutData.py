@@ -1,10 +1,11 @@
-from ioService import writer, reader, parser
-from collections import Counter
-from helper import Auxiliary
 import pandas as pd
 import openpyxl
 import numpy as np
 import configSetting
+
+from ioService import writer, reader, parser
+from collections import Counter
+from helper import Auxiliary
 
 
 def mergeAllAboutDataToExcel() -> None:
@@ -16,7 +17,7 @@ def mergeAllAboutDataToExcel() -> None:
     ws.title = "about"
     wb.save("./output/allAboutData.xlsx")
 
-    target_names = configSetting.jsonArrayData['targetName']
+    target_names = configSetting.json_array_data['targetName']
 
     print(f"開始進行個人關於資料合併,人員列項:{target_names}")
 

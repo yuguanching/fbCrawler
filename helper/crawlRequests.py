@@ -1,7 +1,3 @@
-from inspect import Traceback
-from tempfile import tempdir
-from queue import Queue
-import grequests
 import requests
 import re
 import json
@@ -10,7 +6,6 @@ import random
 import os
 import traceback
 import configSetting
-
 
 from queue import Queue
 from numpy import append
@@ -36,7 +31,7 @@ def __getHeaders__(pageurl) -> dict:
     headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                'accept-language': 'en'}
     headers['ec-ch-ua-platform'] = 'Windows'
-    headers['user-agent'] = fake_user_agent.chrome
+    headers['User-Agent'] = str(fake_user_agent.chrome)
     headers['sec-fetch-site'] = "same-origin"
     # headers['cookie'] = ''
     headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[
@@ -61,6 +56,7 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
     headers = __getHeaders__(pageURL)
 
     session = requests.session()
+
     # 設定失敗重試策略
     retry_strategy = Retry(
         total=configSetting.retry,
@@ -74,10 +70,10 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
 
     is_up_to_time = True
     while True:
-        print("=========================================================================")
+        print(f"{'=' * 100}\n")
         print(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
         writer.writeLogToFile(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
-        writer.writeLogToFile("======================================================================")
+        print(f"{'=' * 100}\n")
         data = {'variables': str({"count": 3,
                                   "cursor": cursor,
                                   "id": pageID,
@@ -140,9 +136,6 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
                 else:
                     cursor = cursor_now
                     current_time = time_now
-            resp.close()
-            time.sleep(0.5)
-            # time.sleep(random.randint(1, 2))
             # 超過設定的撈取日期
             if (is_up_to_time == False) and (arrive_first_catch_time == True):
                 return contents
@@ -152,28 +145,20 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
             break
 
         except Exception as e:
-            print(f"行程{processNum}-> Failed reason: {str(e)}")
-            print("ERROR Occured !!! changing proxy...")
-            # headers = __getHeaders__(pageurl=pageURL)
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"pageid: {pageID}, docid: {docID}, cursor: {cursor}")
 
             ult_noproxy_count += 1
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"failed to catch posts after {try_count} times trying...")
-                    return contents
-                print("all proxy are down ! please refresh the proxyList")
-                proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                proxy_count = 0
-                try_count += 1
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                continue
+            proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
+        finally:
+            time.sleep(random.randint(1, 2))
     session.close()
     return contents
 
@@ -190,6 +175,7 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, proc
     headers = __getHeaders__(pageURL)
 
     session = requests.session()
+
     # 設定失敗重試策略
     retry_strategy = Retry(
         total=configSetting.retry,
@@ -242,8 +228,6 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, proc
             else:
                 cursor = cursor_now
                 current_time = time_now
-            resp.close()
-            time.sleep(random.randint(1, 2))
             # 超過設定的撈取日期
             if (is_up_to_time == False) and (arrive_first_catch_time == True):
                 return contents
@@ -253,31 +237,24 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, proc
             break
 
         except Exception as e:
-            print(f"行程{processNum}-> Failed reason: {str(e)}")
-            print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"grouppageid: {groupPageID}, docid: {groupDocID}, cursor: {cursor}")
 
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"failed to catch posts after {try_count} times trying...")
-                    return contents
-                print("all proxy are down ! please refresh the proxyList")
-                proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                proxy_count = 0
-                try_count += 1
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                continue
+            proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
+        finally:
+            time.sleep(random.randint(1, 2))
     session.close()
     return contents
 
 
-def crawlFeedback(pageURL, feedbackID, docID, postsCount, reqName, fbDTSG, targetName, processNum, queue: Queue = None, queueSignal: Queue = None) -> list:
+def crawlFeedback(pageURL, postsCount, feedbackID, docID, reqName, fbDTSG, targetName, processNum, queue: Queue = None, queueSignal: Queue = None) -> list:
 
     try_count = 0  # 全任務使用各種IP重試的次數統計
     proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
@@ -288,14 +265,18 @@ def crawlFeedback(pageURL, feedbackID, docID, postsCount, reqName, fbDTSG, targe
     headers = __getHeaders__(pageURL)
     session = requests.session()
 
+    # 所有配合多執行緒的功能都要將keep-alive關閉,確保每次連線取完資料會關閉,避免連線數被吃滿導致無法開啟連線的錯誤
+    headers['Connection'] = 'close'
+
     # 設定失敗重試策略
     retry_strategy = Retry(
+        connect=5,
         total=configSetting.retry_feedback,
         status_forcelist=[429, 500, 502, 503, 504],
         method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=100, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     while True:
@@ -336,74 +317,134 @@ def crawlFeedback(pageURL, feedbackID, docID, postsCount, reqName, fbDTSG, targe
                 raise UnboundLocalError(f"Reached the last page")
             else:
                 cursor = cursor_now
-            resp.close()
-            time.sleep(random.randint(1, 2))
+
+            try:
+                resp.close()
+            except AttributeError:
+                pass
 
         except UnboundLocalError:
             print(f"文章編號{postsCount}的分享抓取 Reached the last page")
             break
 
         except Exception as e:
-
-            # print(f"Failed reason : {str(e)}, feedback_id : {feedback_id}, post_id : {posts_count}" )
-            # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"post_id:{postsCount}, feedback_id:{feedbackID}, docid:{docID}, cursor:{cursor}")
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"failed to catch feedback after {try_count} times trying...")
-                    return contents
-                # 沒有使用多執行緒的走這邊
-                if queueSignal is None:
-                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                    proxy_count = 0
-                    try_count += 1
-                    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                    continue
-                else:
-                    # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
-                        # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxy_ip_list = json.loads(os.environ['proxy_list'])
-                        proxy_count = 0
-                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                        continue
-                    else:
-                        # 尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queueSignal.qsize() == 0:
-                            queueSignal.put(str(processNum))
-                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                            ip_list_str = json.dumps(proxy_ip_list)
-                            os.environ['proxy_list'] = ip_list_str
-                            proxy_count = 0
-                            try_count += 1
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            sig = queueSignal.get()
-                            print(f"行程{processNum}->文章編號{postsCount} : proxyList更新完畢, 釋放queue_signal: {sig}")
-                            continue
-                        else:
-                            # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
-                            # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxy_ip_list = json.loads(os.environ['proxy_list'])
-                            proxy_count = 0
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            continue
-            else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                continue
-    session.close()
 
+            # 沒有使用多執行緒的走這邊
+            if queueSignal is None:
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            else:
+                proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
+                    proxy_count, try_count, proxy_ip_list, processNum, postsCount, len(contents), queueSignal)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}->分享者編號{postsCount} failed to catch posts after {try_count} times trying...")
+                break
+            else:
+                continue
+        finally:
+            time.sleep(random.randint(1, 5))
+
+    session.close()
     if queue is not None:
         queue.put(contents)
+        fill = int(os.environ.get("feedback_id_list_len"))
         if queue.qsize() % configSetting.queue_show_interval == 0:
             print(f"行程{processNum}-> {targetName}:目前完成的任務數量為 {queue.qsize()}")
+        if fill - queue.qsize() < 50:
+            print(f"行程{processNum}-> {targetName}:還剩下 {fill - queue.qsize()} 個任務未完成")
 
     return contents
 
 
-def crawlSectionAbout(pageURL, fbDTSG, docID, userID, reqName, targetName, processNum, friendDict, queue: Queue = None, queueSignal: Queue = None) -> list:
+def crawlPostsComments(pageURL, postsCount, feedbackID, storyID, docID, reqName, fbDTSG, targetName, processNum, queue: Queue = None, queueSignal: Queue = None) -> list:
+
+    try_count = 0  # 全任務使用各種IP重試的次數統計
+    proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
+    proxy_ip_list = json.loads(os.environ['proxy_list'])
+    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+    contents = []
+    headers = __getHeaders__(pageURL)
+
+    # 所有配合多執行緒的功能都要將keep-alive關閉,確保每次連線取完資料會關閉,避免連線數被吃滿導致無法開啟連線的錯誤
+    headers['Connection'] = 'close'
+
+    session = requests.session()
+
+    # 設定失敗重試策略
+    retry_strategy = Retry(
+        connect=5,
+        total=configSetting.retry_feedback,
+        status_forcelist=[429, 500, 502, 503, 504],
+        method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
+        backoff_factor=0.5
+    )
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=100, max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    while True:
+        data = {'variables': str({
+            'feedbackID': feedbackID,
+            'storyID': storyID,
+            "scale": "1",
+            "feedbackSource": 110,
+            "feedLocation": "DEDICATED_COMMENTING_SURFACE"
+        }),
+            'doc_id': docID,
+            "__a": "1",
+            "__comet_req": "15",
+            "fb_api_req_friendly_name": reqName
+        }
+
+        try:
+            resp = session.post(url='https://www.facebook.com/api/graphql/',
+                                data=data,
+                                headers=headers,
+                                timeout=configSetting.timeout_feedback,
+                                proxies={'http': random_proxy_ip, "https": random_proxy_ip},
+                                verify="./config/certs.pem"
+                                )
+            edge_list = helper.__parsingComments__(resp, postsCount)
+            # 文章有分享的資料才做處理
+            if len(edge_list) != 0:
+                contents = contents + edge_list
+                print(f"文章編號{postsCount}的留言抓取finished")
+                break
+
+        except Exception as e:
+            if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
+                writer.writeLogToFile(traceBack=traceback.format_exc())
+                writer.writeLogToFile(traceBack=f"post_id:{postsCount}, feedback_id:{feedbackID}, story_id:{storyID}, docid:{docID}")
+
+            # 沒有使用多執行緒的走這邊
+            if queueSignal is None:
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            else:
+                proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
+                    proxy_count, try_count, proxy_ip_list, processNum, postsCount, len(contents), queueSignal)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
+            else:
+                continue
+        finally:
+            time.sleep(random.randint(1, 2))
+    session.close()
+    if queue is not None:
+        queue.put(contents)
+        fill = int(os.environ.get("feedback_id_list_len"))
+        if queue.qsize() % configSetting.queue_show_interval == 0:
+            print(f"行程{processNum}-> {targetName}:目前完成的任務數量為 {queue.qsize()}")
+        if fill - queue.qsize() < 50:
+            print(f"行程{processNum}-> {targetName}:還剩下 {fill - queue.qsize()} 個任務未完成")
+
+    return contents
+
+
+def crawlSectionAbout(pageURL, usersCount, fbDTSG, docID, userID, reqName, targetName, processNum, friendDict, queue: Queue = None, queueSignal: Queue = None) -> list:
 
     try_count = 0  # 全任務使用各種IP重試的次數統計
     proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
@@ -414,15 +455,20 @@ def crawlSectionAbout(pageURL, fbDTSG, docID, userID, reqName, targetName, proce
     edge_list = []
     headers = __getHeaders__(pageURL)
 
+    # 所有配合多執行緒的功能都要將keep-alive關閉,確保每次連線取完資料會關閉,避免連線數被吃滿導致無法開啟連線的錯誤
+    headers['Connection'] = 'close'
+
     session = requests.session()
+
     # 設定失敗重試策略
     retry_strategy = Retry(
+        connect=5,
         total=configSetting.retry,
         status_forcelist=[429, 500, 502, 503, 504],
         method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=100, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     while True:
@@ -452,60 +498,27 @@ def crawlSectionAbout(pageURL, fbDTSG, docID, userID, reqName, targetName, proce
                                     proxies={'http': random_proxy_ip, "https": random_proxy_ip})
             if reqName == 'ProfileCometAboutAppSectionQuery':
                 edge_list = helper.__parsingSectionAbout__(resp, 0)
-                resp.close()
                 break
 
         except Exception as e:
-            # print("Failed reason : " ,str(e))
-            # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"userid: {userID}, docid: {docID}, collectionToken: 0")
 
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"行程{processNum}-> failed to catch SectionAbout after {try_count} times trying...")
-                    break
-                # 沒有使用多執行緒的走這邊
-                if queueSignal is None:
-                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                    proxy_count = 0
-                    try_count += 1
-                    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                    continue
-                else:
-                    # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
-                        # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxy_ip_list = json.loads(os.environ['proxy_list'])
-                        proxy_count = 0
-                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                        continue
-                    else:
-                        # 尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queueSignal.qsize() == 0:
-                            queueSignal.put(str(processNum))
-                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                            ip_list_str = json.dumps(proxy_ip_list)
-                            os.environ['proxy_list'] = ip_list_str
-                            proxy_count = 0
-                            try_count += 1
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            sig = queueSignal.get()
-                            print(f"行程{processNum}-> proxyList 更新完畢, 釋放queue_signal: {sig}")
-                            continue
-                        else:
-                            # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
-                            # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxy_ip_list = json.loads(os.environ['proxy_list'])
-                            proxy_count = 0
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            continue
+            # 沒有使用多執行緒的走這邊
+            if queueSignal is None:
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+                proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
+                    proxy_count, try_count, proxy_ip_list, processNum, usersCount, len(contents), queueSignal)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
+            else:
                 continue
-
+        finally:
+            time.sleep(random.randint(1, 2))
     contents = contents + edge_list
     collection_token_list = edge_list[0]['id_output']
     collect_id_count = 1
@@ -543,60 +556,27 @@ def crawlSectionAbout(pageURL, fbDTSG, docID, userID, reqName, targetName, proce
             if len(edge_list) != 0:
                 contents = contents + edge_list
                 collect_id_count += 1
-            resp.close()
 
         except Exception as e:
-            # print("Failed reason : " ,str(e))
-            # print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"userid: {userID}, docid: {docID}, collectionToken: {collection_token_list[collect_id_count]}")
 
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"行程{processNum}-> failed to catch SectionAbout after {try_count} times trying...")
-                    return contents
-                # 沒有使用多執行緒的走這邊
-                if queueSignal is None:
-                    proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                    proxy_count = 0
-                    try_count += 1
-                    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                    continue
-                else:
-                    # 先比較環境變數中的proxyList有沒有更新
-                    if json.dumps(proxy_ip_list) != os.environ['proxy_list']:
-                        # print(f"行程{process_num} 發現環境變數已更新,直接從環境變數刷新proxyList")
-                        proxy_ip_list = json.loads(os.environ['proxy_list'])
-                        proxy_count = 0
-                        random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                        continue
-                    else:
-                        # 尚未有人更新,檢查當前是否有人占用更新proxyList的資格,若可以更新proxyList,執行後刷新環境變數
-                        if queueSignal.qsize() == 0:
-                            queueSignal.put(str(processNum))
-                            proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                            ip_list_str = json.dumps(proxy_ip_list)
-                            os.environ['proxy_list'] = ip_list_str
-                            proxy_count = 0
-                            try_count += 1
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            sig = queueSignal.get()
-                            print(f"行程{processNum}-> proxyList 更新完畢, 釋放queue_signal: {sig}")
-                            continue
-                        else:
-                            # 有人占用,就先不更新proxyList, 直接取得當前環境變數中的proxyList來(等於跳空一輪)
-                            # print(f"行程{process_num} 不更新proxyList,取當前的環境變數")
-                            proxy_ip_list = json.loads(os.environ['proxy_list'])
-                            proxy_count = 0
-                            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                            continue
+            # 沒有使用多執行緒的走這邊
+            if queueSignal is None:
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+                proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
+                    proxy_count, try_count, proxy_ip_list, processNum, usersCount, len(contents), queueSignal)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
+            else:
                 continue
+        finally:
+            time.sleep(random.randint(1, 2))
     session.close()
-
     # 抓朋友群資料時將該朋友的dict補進去
     if friendDict is not None:
         contents.append(friendDict)
@@ -621,6 +601,7 @@ def crawlFriendzone(pageURL, friendzoneID, docID, reqName, proxyIpList, processN
     # headers['cookie'] += cookieStr
 
     session = requests.session()
+
     # 設定失敗重試策略
     retry_strategy = Retry(
         total=configSetting.retry,
@@ -657,34 +638,25 @@ def crawlFriendzone(pageURL, friendzoneID, docID, reqName, proxyIpList, processN
                 raise UnboundLocalError("Reached the last page")
             else:
                 cursor = cursor_now
-            resp.close()
-            time.sleep(random.randint(1, 2))
 
         except UnboundLocalError:
             print("Reached the last page")
             break
 
         except Exception as e:
-            print(f"行程{processNum}-> Failed reason : {str(e)}")
-            print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"friendzone_id: {friendzoneID}, docid: {docID}, cursor: {cursor}")
 
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
-                    return contents
-                print("all proxy are down ! please refresh the proxyList")
-                proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                proxy_count = 0
-                try_count += 1
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                continue
+            proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
+        finally:
+            time.sleep(random.randint(1, 2))
     session.close()
     return contents
 
@@ -702,6 +674,7 @@ def crawlGroupMember(pageURL, fbDTSG, cookieStr, groupID, docID, reqName, proxyI
     headers['cookie'] += cookieStr
 
     session = requests.session()
+
     # 設定失敗重試策略
     retry_strategy = Retry(
         total=configSetting.retry,
@@ -746,33 +719,24 @@ def crawlGroupMember(pageURL, fbDTSG, cookieStr, groupID, docID, reqName, proxyI
                 raise UnboundLocalError("Reached the last page")
             else:
                 cursor = cursor_now
-            resp.close()
-            time.sleep(random.randint(1, 2))
 
         except UnboundLocalError:
             print("Reached the last page")
             break
 
         except Exception as e:
-            print(f"行程{processNum}-> Failed reason : {str(e)}")
-            print("ERROR Occured !!! changing proxy...")
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
                 writer.writeLogToFile(traceBack=f"group_id: {groupID}, docid: {docID}, cursor: {cursor}")
 
-            proxy_count += 1
-            if proxy_count >= len(proxy_ip_list):
-                if try_count >= configSetting.proxy_try_count:
-                    print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
-                    return contents
-                print("all proxy are down ! please refresh the proxyList")
-                proxy_ip_list = proxy.gRequestsProxyList(processNum)
-                proxy_count = 0
-                try_count += 1
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
-                continue
+            proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(f"行程{processNum}-> failed to catch posts after {try_count} times trying...")
+                return contents
             else:
-                random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
                 continue
+        finally:
+            time.sleep(random.randint(1, 2))
     session.close()
     return contents

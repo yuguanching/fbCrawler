@@ -1,22 +1,24 @@
-import grequests
 import requests
 import re
 import random
 import os
 import configSetting
 
+from typing import Union
 from bs4 import BeautifulSoup
 from webManager import webDriver
 from ioService import writer, reader
 
 
-def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageURL, errString, checkOption=2) -> tuple[str, str, str, bool]:
+def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageURL, errString, checkOption=2) -> Union[tuple[str, str, str, bool], tuple[str, str, str, str, str, bool]]:
     # checkOption-> 0: 只檢查id , 1:只檢查docid , 2: 兩個都檢查(預設值為2)
-    accounts_len = len(configSetting.jsonArrayData['user']['account'])
+    accounts_len = len(configSetting.json_array_data['user']['account'])
     account_num = os.environ.get("account_number_now")
     id = ""
     docid = ""
     req_name = ""
+    comment_docid = ""
+    comment_req_name = ""
     if account_num is None:
         account_num = random.randint(0, accounts_len-1)
     else:
@@ -31,17 +33,20 @@ def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageU
         customDriver.isLogin = True
 
     while True:
-        id, docid, req_name, is_been_banned = func(pageURL=pageURL, customDriver=customDriver)
+        if isinstance(customDriver, webDriver.feedbackDriver):
+            id, docid, req_name, comment_docid, comment_req_name, is_been_banned = func(pageURL=pageURL, customDriver=customDriver)
+        else:
+            id, docid, req_name, is_been_banned = func(pageURL=pageURL, customDriver=customDriver)
 
         # 若發現該頁面被臉書封鎖,則直接回傳空值與標記,由外部判斷處理
         if is_been_banned:
-            return id, docid, req_name, is_been_banned
+            break
 
         match checkOption:
             case 0:
                 if id != "":
                     os.environ['account_number_now'] = str(account_num)
-                    return id, docid, req_name, is_been_banned
+                    break
                 else:
                     print(errString)
                     account_num += 1
@@ -56,7 +61,7 @@ def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageU
             case 1:
                 if docid != "":
                     os.environ['account_number_now'] = str(account_num)
-                    return id, docid, req_name, is_been_banned
+                    break
                 else:
                     print(errString)
                     account_num += 1
@@ -71,7 +76,7 @@ def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageU
             case 2:
                 if docid != "" and id != "":
                     os.environ['account_number_now'] = str(account_num)
-                    return id, docid, req_name, is_been_banned
+                    break
                 else:
                     print(errString)
                     account_num += 1
@@ -83,6 +88,10 @@ def fetchEigenvaluesAndID(func, customDriver: configSetting.allDriverType, pageU
                     customDriver.login(account_num)
                     customDriver.isLogin = True
                     continue
+    if isinstance(customDriver, webDriver.feedbackDriver):
+        return id, docid, req_name, comment_docid, comment_req_name, is_been_banned
+    else:
+        return id, docid, req_name, is_been_banned
 
 
 def __getFriendzoneNovSection__(pageURL, customDriver: webDriver.friendzoneDriver) -> tuple[str, str, str, bool]:
@@ -213,7 +222,7 @@ def __getUserIDSection__(pageURL, customDriver: webDriver.postsDriver):
     return userid, docid, req_name, is_been_banned
 
 
-def __getDocIDFeedback__(pageURL, customDriver: webDriver.feedbackDriver) -> tuple[str, str, str, bool]:
+def __getDocIDFeedback__(pageURL, customDriver: webDriver.feedbackDriver) -> tuple[str, str, str, str, str, bool]:
 
     # *部分粉專有鎖年齡與國家,導致只能登入後才能瀏覽,故改用爬蟲登入法取得頁面資料
     print("以selenium的爬蟲登入法取得feedback 的 docid")
@@ -227,6 +236,8 @@ def __getDocIDFeedback__(pageURL, customDriver: webDriver.feedbackDriver) -> tup
     soup = BeautifulSoup(resp, 'lxml')
     docid = ""
     req_name = ""
+    comment_docid = ""
+    comment_req_name = ""
     for js in soup.findAll('link', {'rel': 'preload'}):
         resp = requests.get(js['href'])
         for line in resp.text.split('\n', -1):
@@ -244,11 +255,22 @@ def __getDocIDFeedback__(pageURL, customDriver: webDriver.feedbackDriver) -> tup
                 break
             else:
                 continue
+
+        # 抓留言用的docid
+        for line in resp.text.split('\n', -1):
+            if 'CometFocusedStoryViewUFIQuery_' in line:
+                comment_ans_list = re.findall('e.exports="([0-9]{1,})"', line)
+                if len(comment_ans_list) > 0:
+                    comment_docid = comment_ans_list[0]
+                    comment_req_name = 'CometFocusedStoryViewUFIQuery'
+                    break
+
         resp.close()
-        if req_name == "CometResharesFeedPaginationQuery":
+        if req_name == "CometResharesFeedPaginationQuery" and comment_req_name == "CometFocusedStoryViewUFIQuery":
             break
     print(f'feedback docid is: {docid}, req_name is: {req_name}')
-    return "", docid, req_name, is_been_banned
+    print(f'comment docid is: {comment_docid}, req_name is: {comment_req_name}')
+    return "", docid, req_name, comment_docid, comment_req_name, is_been_banned
 
 
 def __getPageID__(pageURL, customDriver: webDriver.postsDriver) -> tuple[str, str, str, bool]:
