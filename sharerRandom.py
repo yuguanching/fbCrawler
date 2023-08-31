@@ -13,7 +13,7 @@ def sharerPartition() -> None:
     for sub_dir in target_names:
         print(f"{sub_dir} 開始以sharer sheet 進行分群")
         # 讀取相關的欄位
-        sharer_df = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="sharer", usecols="B:F")
+        sharer_df = pd.read_excel(f"{configSetting.output_root}{sub_dir}/{file_name}", sheet_name="sharer", usecols="B:J")
 
         # 從第幾筆開始分群,前面的都去掉
         start_from_where = 50
@@ -28,7 +28,8 @@ def sharerPartition() -> None:
             output_excel = 0
             while (end < len(df_shuffled)):
                 temp_df = df_shuffled[start:end]
-                writer.pdToExcel(des='./output/' + sub_dir + '/sharerOutput_' + str(output_excel) + '.xlsx', df=temp_df, sheetName="sheet1")
+                writer.pdToExcel(des=f'{configSetting.output_root}' + sub_dir + '/sharerOutput_' +
+                                 str(output_excel) + '.xlsx', df=temp_df, sheetName="sheet1")
                 start = end
                 end = start + partition_number
                 output_excel += 1
@@ -37,7 +38,8 @@ def sharerPartition() -> None:
             if end >= len(df_shuffled):
                 end = len(df_shuffled)
                 temp_df = df_shuffled[start:end]
-                writer.pdToExcel(des='./output/' + sub_dir + '/sharerOutput_' + str(output_excel) + '.xlsx', df=temp_df, sheetName="sheet1")
+                writer.pdToExcel(des=f'{configSetting.output_root}' + sub_dir + '/sharerOutput_' +
+                                 str(output_excel) + '.xlsx', df=temp_df, sheetName="sheet1")
 
         print(f"{sub_dir} 分群完成")
     return

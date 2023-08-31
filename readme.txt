@@ -2,6 +2,10 @@
 
 
 
+ # 相關粉專紀錄頁:https://docs.google.com/spreadsheets/d/10vkb3jl42d8E3_qiHI9tSaRNi6tuamb-W0IKr4SRY1w/edit?pli=1#gid=0
+
+
+
 指令與功能指引
 # python main.py : 執行主程式,批次產生目標粉專們的文章資料、分享統計資料
 

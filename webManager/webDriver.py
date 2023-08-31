@@ -1,3 +1,4 @@
+import grequests
 import os
 import random
 import time
@@ -27,34 +28,6 @@ os.environ['WDM_LOG_LEVEL'] = '0'
 
 # 有新的driver建立時要去configSetting.py登記型別
 
-
-def loginForSeleniumWire(driver, accountCounter, loginURL):
-
-    # 登入的帳號與密碼
-    username_list = configSetting.json_array_data['user']['account']
-    password_list = configSetting.json_array_data['user']['password']
-    account = username_list[accountCounter]
-    pwd = password_list[accountCounter]
-    print("開始登入,身分 :", account)
-    url = loginURL
-    driver.get(url)
-
-    # 輸入賬號密碼
-    WebDriverWait(driver, 30).until(
-        EC.presence_of_element_located((By.XPATH, '//*[@id="email"]')))
-    elem = driver.find_element(By.ID, "email")
-    elem.send_keys(account)
-
-    elem = driver.find_element(By.ID, "pass")
-    elem.send_keys(pwd)
-
-    elem.send_keys(Keys.RETURN)
-
-    print("登入完成")
-    time.sleep(1)
-    return
-
-
 class customWebDriver(ABC):
 
     def __init__(self, driver=None, options=None, isLogin=False):
@@ -77,6 +50,10 @@ class customWebDriver(ABC):
         self.options.add_argument("--disable-notifications")
         # 開啟無痕模式(有助於登入)
         self.options.add_argument('--incognito')
+
+        # self.options.add_argument("--user-data-dir=D:\\我的資料夾\\文件\\fbCrawler\\.profile")
+        # self.options.add_argument("--profile-directory=jerry")
+
         self.options.add_argument("--window-size=1920,1080")
         # 設定運行時的語系
         self.options.add_argument("--lang=zh-tw")
@@ -84,7 +61,7 @@ class customWebDriver(ABC):
         # 屏蔽部分警告型log
         self.options.add_experimental_option('useAutomationExtension', False)
         self.options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
-        # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chorme crash，所以要改成寫入到 /tmp
+        # docker原本的分享記憶體在 /dev/shm 是 64MB，會造成chrome crash，所以要改成寫入到 /tmp
         self.options.add_argument('--disable-dev-shm-usage')
         # 以最高權限運行
         self.options.add_argument('--no-sandbox')
@@ -102,7 +79,6 @@ class customWebDriver(ABC):
         建立啟動器,失敗時則重試到成功建立為止
         若有已存在的啟動器餵進來,則直接植入當前物件的屬性中
         """
-
         self.driver = None
         if driver is not None:
             self.driver = driver
@@ -208,7 +184,7 @@ class feedbackDriver(customWebDriver):
                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
 
                 share_point_locator = (
-                    By.XPATH, ".//div[@class='x1n2onr6']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j x1jfb8zj']")
+                    By.XPATH, ".//div[@class='x1n2onr6']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt x1jfb8zj xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j']")
                 try:
                     share_list_point = WebDriverWait(asp, 5).until(
                         EC.presence_of_all_elements_located(share_point_locator))
@@ -315,18 +291,31 @@ class screenshotDriver(customWebDriver):
     Cautions: 跑截圖的時候請勿晃動畫面,以免截到錯誤的畫面
     """
 
-    def _getSource(self, url, count, switch, subDir):
+    def _getSource(self, url, count, switch, subDir) -> bool:
         time_pause = 2
         self.driver.get(url)
         time.sleep(time_pause)
         self.driver.execute_script("window.scrollTo(0,0)")
         path = ""
+        current_url = self.driver.current_url
+
         if switch == 0:
-            path = "./output/" + subDir + "/img/sharer/" + str(count) + ".png"
+            path = f"{configSetting.output_root}" + subDir + "/img/sharer/" + str(count) + ".png"
             locator = (By.CSS_SELECTOR, "div.x78zum5.xdt5ytf.x10cihs4.x1t2pt76.x1n2onr6.x1ja2u2z > div > div > div")
-        else:
-            path = "./output/" + subDir + "/img/been_sharer/" + str(count) + ".png"
+        elif switch == 1:
+            path = f"{configSetting.output_root}" + subDir + "/img/been_sharer/" + str(count) + ".png"
             locator = (By.CSS_SELECTOR, "div.x78zum5.xdt5ytf.x10cihs4.x1t2pt76.x1n2onr6.x1ja2u2z > div > div")
+        else:
+            mod_count = count + 5
+            if mod_count < 10:
+                mod_count = "0" + str(mod_count)
+            else:
+                mod_count = str(mod_count)
+            path = f"{configSetting.output_root}" + subDir + "/img/report/images_" + mod_count + ".png"
+            if "video" in current_url:
+                locator = (By.XPATH, "//div[@class='x78zum5 xdt5ytf x1huibft x1n6yrxt']")
+            else:
+                locator = (By.XPATH, "//div[@class='x1cy8zhl x78zum5 x1q0g3np xod5an3 x1pi30zi x1swvt13 xz9dl7a']/../..")
 
         try:
             # personal_profile上面的部分截圖
@@ -336,9 +325,9 @@ class screenshotDriver(customWebDriver):
         except:
             writer.writeLogToFile(traceBack=traceback.format_exc())
             print("截圖動作失敗,查看log檔確認原因")
-
+            return False
         time.sleep(time_pause)
-        return
+        return True
 
 
 class groupMemberDriver(customWebDriver):

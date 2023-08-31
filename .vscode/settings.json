@@ -1,7 +1,14 @@
 {
-    "python.linting.banditEnabled": true,
-    "python.linting.enabled": true,
-    "workbench.colorCustomizations": {
-        "terminalCursor.foreground": "#ffffff" // white
-    }
+  "python.linting.banditEnabled": true,
+  "python.linting.enabled": true,
+  "workbench.colorCustomizations": {
+    "terminalCursor.foreground": "#ffffff" // white
+  },
+  "python.analysis.typeCheckingMode": "off",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.autopep8"
+  },
+  "python.formatting.provider": "none",
+  "python.formatting.autopep8Args": ["--max-line-length=150","--ignore", "E402"]
+
 }

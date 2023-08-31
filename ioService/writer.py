@@ -2,7 +2,8 @@ import pandas as pd
 import win32com.client as win32
 import os
 import traceback
-
+import xlwings as xw
+from xlwings import Sheet
 from datetime import datetime
 
 
@@ -12,33 +13,29 @@ def pdToExcel(des, df: pd.DataFrame, sheetName, mode='w', autoFitIsNeed=True, in
     filename = os.path.join(file_dir, des)
 
     # product csv file
-    filename_csv = filename.replace(".xlsx", "_" + sheetName + ".csv")
-    df.to_csv(filename_csv, index=False, encoding='utf_8_sig')
+    # filename_csv = filename.replace(".xlsx", "_" + sheetName + ".csv")
+    # df.to_csv(filename_csv, index=False, encoding='utf_8_sig')
 
     if indexIsNeed is True:
         if mode == "w":
             with pd.ExcelWriter(filename, mode=mode, engine='openpyxl') as writer:
                 df.to_excel(writer,
-                            encoding='utf_8_sig',
                             index_label='id',
                             sheet_name=sheetName)
         else:
             with pd.ExcelWriter(filename, mode=mode, engine='openpyxl', if_sheet_exists="replace") as writer:
                 df.to_excel(writer,
-                            encoding='utf_8_sig',
                             index_label='id',
                             sheet_name=sheetName)
     else:
         if mode == "w":
             with pd.ExcelWriter(filename, mode=mode, engine='openpyxl') as writer:
                 df.to_excel(writer,
-                            encoding='utf_8_sig',
                             index=False,
                             sheet_name=sheetName)
         else:
             with pd.ExcelWriter(filename, mode=mode, engine='openpyxl', if_sheet_exists="replace") as writer:
                 df.to_excel(writer,
-                            encoding='utf_8_sig',
                             index=False,
                             sheet_name=sheetName)
 
@@ -72,7 +69,40 @@ def writeLogToFile(traceBack) -> None:
     sourceFile.close()
 
 
-def writeTempFile(filename, content) -> None:
-    f = open("./temp/" + filename + ".txt", "w", encoding='utf_8_sig')
+def writeTempFile(filename, content, mode='w') -> None:
+    f = open("./temp/" + filename + ".txt", mode=mode, encoding='utf_8_sig')
     f.write(content)
     f.close()
+
+
+def writeJsonFile(filename, content) -> None:
+    f = open("./temp/" + filename + ".json", "w", encoding='utf_8_sig')
+    f.write(content)
+    f.close()
+
+
+def copyFileFromSrcToDst(src: str, dst: str) -> None:
+    command = f'copy {src} {dst}'
+    os.system(command)
+
+
+def updateDataToExcelCertainCell(data: pd.DataFrame, filename: str, sheetname: str, cell_index: str) -> None:
+    app = xw.App(visible=False)
+    wb = xw.Book(filename)
+    ws: Sheet = wb.sheets[sheetname]
+    ws.range(cell_index).options(index=False, header=False).value = data
+
+    wb.save()
+    wb.close()
+    app.quit()
+
+
+def updateFormulaToExcel(filename: str, sheetname: str, start: int, end: int) -> None:
+    app = xw.App(visible=False)
+    wb = xw.Book(filename)
+    ws: Sheet = wb.sheets[sheetname]
+    for i in range(start, end + 1):
+        ws.range(f"T{i}").formula = f'=IF($E{i}="V",$E$4,0)+IF($F{i}="V",$F$4,0)+IF($G{i}="V",$G$4,0)+IF($H{i}="V",$H$4,0)+IF($I{i}="V",$I$4,0)+IF($J{i}="V",$J$4,0)+IF($K{i}="V",$K$4,0)+IF($L{i}="V",$L$4,0)+IF($M{i}="V",$M$4,0)+IF($N{i}="V",$N$4,0)+IF($O{i}="V",$O$4,0)+IF($P{i}="V",$P$4,0)+IF($Q{i}="V",$Q$4,0)+IF($R{i}="V",$R$4,0)'
+    wb.save()
+    wb.close()
+    app.quit()

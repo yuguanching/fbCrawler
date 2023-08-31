@@ -1,13 +1,18 @@
 import os
+import configSetting
 
 from ioService import reader
 from webManager import webDriver
 from typing import Union
+from datetime import datetime
 
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 json_array_data = reader.readInputJson()
 feedback_manual = False
+output_root = './output/粉專/'
+
+sp_time = datetime.strptime("2010-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 # ---------- input settings ----------
 
 
@@ -31,17 +36,17 @@ multithread_high = 200
 
 # ---------- connections settings ----------
 # 發起request若出現異常的重試次數
-retry = 1
+retry = 3
 retry_feedback = 5
 
 # 連線出現延遲時的等待時間
-timeout = 10
+timeout = 15
 timeout_feedback = 60
 
 # 冷卻時間:是否可以關閉proxy使用一次本機公網ip呼叫(單位是秒)
-cooldown_timedelta = 30
+cooldown_timedelta = 60
 # 發生任何例外錯誤的容忍次數(使用一次本機公網IP後會重新計數)
-exception_max_try = 2
+exception_max_try = 100
 # ---------- connections settings ----------
 
 
@@ -51,6 +56,7 @@ need_headless = True
 
 # 分享行為截圖要截前幾名
 screenshot_count = 3
+screenshot_article_count = 10
 
 # 隱式等待時間
 implicitly_wait = 20

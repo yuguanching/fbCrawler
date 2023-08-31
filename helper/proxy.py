@@ -7,6 +7,7 @@ import requests
 import time
 import configSetting
 import base64
+import traceback
 
 from py_mini_racer import MiniRacer
 from queue import Queue
@@ -14,31 +15,34 @@ from bs4 import BeautifulSoup
 
 
 def getNovaFreeProxyList() -> list:
-    ctx = MiniRacer()
-    s = requests.session()
-    resp = s.get("https://www.proxynova.com/proxy-server-list/elite-proxies/")
-    soup = BeautifulSoup(resp.text, 'html.parser')
-    rows = soup.find('table', {'id': 'tbl_proxy_list'}).find('tbody').find_all('tr')
     ip_list = []
-    for row in rows:
-        row_content = row.find_all('td')
-        ip = ""
-        for i in range(0, 2):
-            if i == 0:
-                try:
-                    jsStr = "function scriptRunner(){" + \
-                        str(row_content[i].find('script').text).replace("document.write", "return ") + "} scriptRunner()"
+    try:
+        ctx = MiniRacer()
+        s = requests.session()
+        resp = s.get("https://www.proxynova.com/proxy-server-list/elite-proxies/")
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        resp.close()
+        rows = soup.find('table', {'id': 'tbl_proxy_list'}).find('tbody').find_all('tr')
+        for row in rows:
+            row_content = row.find_all('td')
+            ip = ""
+            for i in range(0, 2):
+                if i == 0:
+                    try:
+                        jsStr = "function scriptRunner(){" + \
+                            str(row_content[i].find('script').text).replace("document.write", "return ") + "} scriptRunner()"
 
-                    ip = ctx.eval(jsStr)
-                except:
-                    break
-            else:
-                port = str(row_content[i].text).strip()
-                ip += ":" + port
-        if ip != "":
-            ip_list.append(ip)
-
-    s.close()
+                        ip = ctx.eval(jsStr)
+                    except:
+                        break
+                else:
+                    port = str(row_content[i].text).strip()
+                    ip += ":" + port
+            if ip != "":
+                ip_list.append(ip)
+        s.close()
+    except:
+        pass
     return ip_list
 
 
@@ -79,7 +83,7 @@ def getTaiwanFreeProxyList() -> list:
         proxy_port = re.findall('d>\d+<', response.text)
         response.close()
         for ip, port in zip(proxy_ip, proxy_port):
-            proxy_ips.append(ip + ":" + port[2:len(port)-1])
+            proxy_ips.append(ip + ":" + port[2:len(port) - 1])
     except:
         print("tw的IP抓取失敗,直接捨棄結果")
 
@@ -198,7 +202,7 @@ def gRequestsProxyList(processNum=None) -> list:
             else:
                 break
         except Exception as e:
-            print(f"行程{processNum} 取proxy發生意外錯誤1: {str(e)},等待後重取")
+            print(f"行程{processNum} 取proxy發生意外錯誤1: {traceback.format_exc()},等待後重取")
             valid_ips = []
             proxy_ips = []
             continue
@@ -208,9 +212,9 @@ def gRequestsProxyList(processNum=None) -> list:
 
 def updateProxyAndStatus(proxyCount, tryCount, ProxyIpList, processNum):
 
-    print(f"行程{processNum}-> all proxy are down ! please refresh the proxyList")
     proxyCount += 1
     if proxyCount >= len(ProxyIpList):
+        print(f"行程{processNum}-> all proxy are down ! please refresh the proxyList")
         ProxyIpList = gRequestsProxyList(processNum)
         proxyCount = 0
         tryCount += 1

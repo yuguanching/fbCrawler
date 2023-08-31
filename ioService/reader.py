@@ -2,8 +2,7 @@ import os
 import json
 
 
-def readInputJson() -> dict:
-    target_file = "./config/input.json"
+def readInputJson(target_file="./config/input.json") -> dict:
     has_file = os.path.isfile(target_file)
 
     if has_file is True:

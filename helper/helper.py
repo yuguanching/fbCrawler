@@ -146,9 +146,9 @@ def __parsingCometModern__(resp: requests.Response) -> tuple[list, str, bool, bo
             print(traceback.format_exc())
             continue
     cursor = temp_cursor
-    if resp['data']['node']['timeline_feed_units']['page_info']['end_cursor'] != None and resp['data']['node']['timeline_feed_units']['page_info']['end_cursor'] != "":
-        end_cursor = resp['data']['node']['timeline_feed_units']['page_info']['end_cursor']
-        cursor = end_cursor
+    # if resp['data']['node']['timeline_feed_units']['page_info']['end_cursor'] != None and resp['data']['node']['timeline_feed_units']['page_info']['end_cursor'] != "":
+    #     end_cursor = resp['data']['node']['timeline_feed_units']['page_info']['end_cursor']
+    #     cursor = end_cursor
     time_now = temp_time
     return edge_list, cursor, is_up_to_time, arrive_first_catch_time, time_now
 

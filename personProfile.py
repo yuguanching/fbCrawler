@@ -23,9 +23,11 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
     posts_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
     posts_driver.driverInitialize()
 
-    friendzone_driver = webDriver.friendzoneDriver(driver=None, options=None, isLogin=False)
+    friendzone_driver = webDriver.friendzoneDriver(driver=posts_driver.driver, options=None, isLogin=True)
     friendzone_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
-    friendzone_driver.driverInitialize()
+
+    screenshot_driver = webDriver.screenshotDriver(driver=posts_driver.driver, options=None, isLogin=True)
+    screenshot_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
 
     for target_url, target_name in zip(target_urls, target_names):
 
@@ -50,7 +52,7 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
 
         post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name, docID=page_docid,
                                                  proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
-        parser.buildCollectData(post_list, target_name)
+        parser.buildCollectData(post_list, target_name, screenshotDriver=screenshot_driver)
         for posts in post_list:
             feedback_id_list.append(posts['feedback_id'])
             story_id_list.append(posts['story_id'])
@@ -116,7 +118,6 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
             print(f"行程{processNum}-> 沒有抓到個人關於資訊的docid代號,故結束抓取")
 
     posts_driver.clearDriver()
-    friendzone_driver.clearDriver()
     return f"行程{processNum}-> 全部執行完成"
 
 
@@ -140,9 +141,8 @@ if __name__ == '__main__':
     posts_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
     posts_driver.driverInitialize()
 
-    friendzone_driver = webDriver.friendzoneDriver(driver=None, options=None, isLogin=False)
+    friendzone_driver = webDriver.friendzoneDriver(driver=posts_driver.driver, options=None, isLogin=True)
     friendzone_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
-    friendzone_driver.driverInitialize()
 
     # 只為了取docid 特徵值,為避免搜索清單的項目有a.被FB封鎖的 b.沒有任何朋友的 ,故自行於配置檔設定任意一個活著且含朋友群的pofile連結
     # 先取一次profile的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的userid不會使用,故不檢查
@@ -155,7 +155,6 @@ if __name__ == '__main__':
 
     os.environ.pop("account_number_now")
     posts_driver.clearDriver()
-    friendzone_driver.clearDriver()
 
     for i in range(process_worker):
         json_array_data_copy_temp = configSetting.json_array_data.copy()
@@ -170,7 +169,7 @@ if __name__ == '__main__':
             writer.writeLogToFile("process " + str(i) + " : " + json.dumps(args_list[i]['targetName'], ensure_ascii=False))
             process_future = executor.submit(runUserInfo, args_list[i], fb_dtsg, about_docid, friendzone_docid, i)
             process_futures.append(process_future)
-            time.sleep(i/2)  # 避免短時間一次執行多條程序所作的緩衝
+            time.sleep(i / 2)  # 避免短時間一次執行多條程序所作的緩衝
         for future in as_completed(process_futures):
             result_list.append(future.result())
     for result in result_list:

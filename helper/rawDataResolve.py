@@ -1,6 +1,8 @@
 
 import traceback
 import re
+import json
+
 from ioService import writer
 
 
@@ -29,8 +31,8 @@ def __resolverEdgesPage__(edge) -> dict:
 
         message = ILLEGAL_CHARACTERS_RE.sub(r'', message)
         # postid
-        postid = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['subscription_target_id']
+        # 2023/06/27 暫時不確定是否會用到
+        postid = edge['node']['post_id']
         # actorid
         pageid = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['id']
         # comment_count 留言
@@ -119,8 +121,8 @@ def __resolverEdgesPage__(edge) -> dict:
         "story_id": story_id,
         "creation_time": creation_time,
         "message": message,
-        "postid": postid,
-        "pageid": pageid,
+        "post_id": postid,
+        "page_id": pageid,
         "feedback_id": feedback_id,
         "comment_count": comment_count,
         "reaction_count": reaction_count,
@@ -138,6 +140,11 @@ def __resolverEdgesPage__(edge) -> dict:
 
 def __resolverEdgesFeedback__(edge, posts_count) -> dict:
     comet_sections_ = edge['node']['comet_sections']
+    ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
+
+    # 特殊的tracking data, 主要是為了抓正確格式的sharer id, 一般欄位的id似乎是加密過的,不好閱讀ex : pfbid02c61dhddXYmAexrJck1GREeLrxuBVZmkkLM7vTBwCbmxqEfmcntm68c77Nrbhn8WJl
+    tracking_data_str = comet_sections_['feedback']['story']['tracking']
+    tracking_data = json.loads(tracking_data_str)
 
     # 分享者名稱
     sharer_name = comet_sections_['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['name']
@@ -152,7 +159,7 @@ def __resolverEdgesFeedback__(edge, posts_count) -> dict:
             create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][2]['story']['creation_time']
 
     # 分享者id
-    sharer_id = comet_sections_['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['id']
+    sharer_id = tracking_data['content_owner_id_new']
     # 內容
     contents_check_point = comet_sections_['content']['story']['comet_sections']['message']
     if contents_check_point is None:
@@ -165,6 +172,8 @@ def __resolverEdgesFeedback__(edge, posts_count) -> dict:
                 contents = contents_check_point['story']['rich_message'][0]['text']
             except:
                 contents = ""
+
+    contents = ILLEGAL_CHARACTERS_RE.sub(r'', contents)
 
     # 被分享者可能不存在
     # 被分享者名稱(需另外處理)

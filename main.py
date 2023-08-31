@@ -19,7 +19,6 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
     """
     jsonArrayDataSub: 已經透過多行程分配過的輸入資料
     """
-
     target_urls = jsonArrayDataSub["targetURL"]
     target_names = jsonArrayDataSub["targetName"]
 
@@ -27,9 +26,11 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
     posts_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
     posts_driver.driverInitialize()
 
-    feedback_driver = webDriver.feedbackDriver(driver=None, options=None, isLogin=False)
+    feedback_driver = webDriver.feedbackDriver(driver=posts_driver.driver, options=None, isLogin=True)
     feedback_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
-    feedback_driver.driverInitialize()
+
+    screenshot_driver = webDriver.screenshotDriver(driver=posts_driver.driver, options=None, isLogin=True)
+    screenshot_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
 
     for target_url, target_name in zip(target_urls, target_names):
 
@@ -52,8 +53,8 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
         if is_been_banned:
             writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
             continue
-        # page_id = "100053749636849"
-        # page_docid = "9686908411334909"
+        # page_id = "100050029991173"
+        # page_docid = "6266011703492935"
         # page_req_name = "ProfileCometTimelineFeedRefetchQuery"
 
         if configSetting.feedback_manual:  # 是否手動餵檔單獨處理分享者資料
@@ -65,7 +66,7 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
         else:
             post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, docID=page_docid, reqName=page_req_name,
                                                      proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
-            parser.buildCollectData(post_list, target_name)
+            parser.buildCollectData(post_list, target_name, screenshotDriver=screenshot_driver)
             for posts in post_list:
                 feedback_id_list.append(posts['feedback_id'])
                 story_id_list.append(posts['story_id'])
@@ -128,13 +129,12 @@ def runFansPage(jsonArrayDataSub, fbDTSG, processNum) -> str:
                 del q_data
                 del q_signal
             print(f"{'*' * 25}行程{processNum}-> 蒐集完成, {target_name} 共蒐集到{len(feedback_data_list)}筆分享數資料{'*' * 25}")
-            parser.buildDataParse(feedback_data_list, target_name)
+            parser.buildDataParse(feedback_data_list, target_name, pageID=page_id, screenshotDriver=screenshot_driver)
             time.sleep(2)  # 給一個寫檔的時間
         else:
             print(f"行程{processNum}-> 沒有抓到分享資料的docid代號,故結束抓取")
 
     posts_driver.clearDriver()
-    feedback_driver.clearDriver()
     return f"行程{processNum}-> 全部執行完成"
 
 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
             writer.writeLogToFile("process " + str(i) + " : " + json.dumps(args_list[i]['targetName'], ensure_ascii=False))
             process_future = executor.submit(runFansPage, args_list[i], fb_dtsg, i)
             process_futures.append(process_future)
-            time.sleep(i/2)  # 避免短時間一次執行多條程序所作的緩衝
+            time.sleep(i / 2)  # 避免短時間一次執行多條程序所作的緩衝
         for future in as_completed(process_futures):
             result_list.append(future.result())
     for result in result_list:  # 確認各行程有完成任務

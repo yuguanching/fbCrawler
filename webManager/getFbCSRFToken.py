@@ -3,78 +3,80 @@ import os
 import traceback
 import configSetting
 
-from seleniumwire import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
+
 from ioService import writer, reader
 from helper import Auxiliary
-from webManager import webDriver
+from playwright.sync_api import sync_playwright
+from playwright._impl._network import Request as p_request
 
 
 os.environ['WDM_LOG_LEVEL'] = '0'
 
+# 擷取具有"graphql" subpath的request, 留下其中的帶入參數(for fb_dtsg)
+
+
+def inspectReq(req: p_request, params: list):
+    if "graphql" in req.url:
+        params.append(req.post_data_json)
+
 
 def getCsrfToken():
-    target = None
-    target_url = configSetting.json_array_data['targetURL']
-    count = 0
-    # ------------------------Web driver settings-------------------------------------
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
-    options.add_argument('--no-sandbox')
-    options.add_argument('--ignore-certificate-errors-spki-list')
-    options.add_argument('--ignore-ssl-errors')
-    # options.headless = True
+    print("開始抓取fb_dtsg特徵與c_user、xs")
+    cookies = list()
+    params = list()
+    param_fb_dtsg = dict()
+    cookie_xs = dict()
+    cookie_cuser = dict()
+    input_data = configSetting.json_array_data
+    target_url = input_data['targetURL'][0]
+    username_list = configSetting.json_array_data['user']['account']
+    password_list = configSetting.json_array_data['user']['password']
+    account_number = 0
 
-    wire_options = {
-        'proxy': {
-            'no_proxy': 'localhost,127.0.0.1'  # excludes
-        }
-    }
-
-    params_dict = ""
-    cookies_xs = ""
-    cookies_cUser = ""
     while True:
         try:
-            driver = webdriver.Chrome(ChromeDriverManager().install(), options=options, seleniumwire_options=wire_options)
-            driver.delete_all_cookies()
+            with sync_playwright() as p:
+                # on: 動態監控接下來某種類型的流量
+                # goto: 同一個分頁跳去其他網址
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context()
+                page = context.new_page()
+                page.on("request", lambda request: inspectReq(request, params))
+                page.goto("https://www.facebook.com")
+                page.get_by_test_id("royal_email").click()
+                page.get_by_test_id("royal_email").fill(username_list[account_number])
+                page.get_by_test_id("royal_pass").click()
+                page.get_by_test_id("royal_pass").fill(password_list[account_number])
+                page.get_by_test_id("royal_login_button").click()
+                time.sleep(3)
+                page.goto(target_url)
+                time.sleep(3)
+                cookies = context.cookies()
+                # ---------------------
+                page.close()
+                context.close()
+                browser.close()
+                break
 
-            webDriver.loginForSeleniumWire(driver=driver, accountCounter=count, loginURL="https://www.facebook.com")
-            driver.get(target_url[0])
-            time.sleep(3)
-
-            for req in driver.requests:
-                if "graphql" in req.url:
-                    target = req
-                    break
-
-            cookies_xs = driver.get_cookie('xs')
-            cookies_cUser = driver.get_cookie('c_user')
-
-            # driver.quit()
-
-            if target is None:
-                count += 1
-                if count >= len(target_url):
-                    count = 0
-                continue
-            else:
-                params_dict = target.params
-                print(f"params from selenium wire : {params_dict}")
-                print(cookies_xs)
-                print(cookies_cUser)
-                return params_dict, cookies_xs, cookies_cUser
         except Exception as e:
-            # print(traceback.format_exc())
-            count += 1
-            if count >= len(target_url):
-                count = 0
+            print("特徵抓取失敗,重試")
+            writer.writeLogToFile(e)
+            account_number += 1
+            if account_number >= len(username_list):
+                account_number = 0
             continue
-        finally:
-            driver.close()
-            driver.quit()
-            driver = None
-            time.sleep(2)
+
+    for param in params:
+        if 'fb_dtsg' in param:
+            param_fb_dtsg = param
+            break
+    for cookie in cookies:
+        if cookie['name'] == 'xs':
+            cookie_xs = cookie
+        if cookie['name'] == 'c_user':
+            cookie_cuser = cookie
+
+    return param_fb_dtsg, cookie_xs, cookie_cuser
 
 
 if __name__ == "__main__":

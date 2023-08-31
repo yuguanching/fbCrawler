@@ -16,19 +16,20 @@ def createIndexExcelAndRead() -> None:
         '粉專': configSetting.json_array_data['targetName'],
         '連結': configSetting.json_array_data['targetURL']
     })
-    writer.pdToExcel(des='./output/index.xlsx', df=index_df, sheetName="sheet1")
+    writer.pdToExcel(des=f'{configSetting.output_root}index.xlsx', df=index_df, sheetName="sheet1")
     print("已完成目標粉專的目錄建置")
 
 
-def checkDirAndCreate(count) -> None:
-    if os.path.exists("./output/" + str(count)):
-        print("subDir " + str(count) + " is already exists")
+def checkDirAndCreate(targetName) -> None:
+    if os.path.exists(f"{configSetting.output_root}" + str(targetName)):
+        print("subDir " + str(targetName) + " is already exists")
     else:
-        os.mkdir("./output/" + str(count))
-        os.makedirs("./output/" + str(count) + "/img/sharer")
-        os.makedirs("./output/" + str(count) + "/img/been_sharer")
-        os.makedirs("./output/" + str(count) + "/img/word_cloud")
-        print("subDir " + str(count) + " created successfully")
+        os.mkdir(f"{configSetting.output_root}" + str(targetName))
+        os.makedirs(f"{configSetting.output_root}" + str(targetName) + "/img/sharer")
+        os.makedirs(f"{configSetting.output_root}" + str(targetName) + "/img/been_sharer")
+        os.makedirs(f"{configSetting.output_root}" + str(targetName) + "/img/word_cloud")
+        os.makedirs(f"{configSetting.output_root}" + str(targetName) + "/img/report")
+        print("subDir " + str(targetName) + " created successfully")
 
 
 def detectURL(str: str) -> str:
@@ -67,7 +68,7 @@ def makeHyperlink(value, name, index="1") -> str:
 # 陣列分群輔助函式
 def split(a, n) -> list:
     k, m = divmod(len(a), n)
-    return list((a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n)))
+    return list((a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)))
 
 
 # 嘗試透過profile個人頁連結擷取userid
@@ -77,7 +78,7 @@ def parseFBUserID(url) -> str:
     if pos == -1:
         return ""
     else:
-        userid = url[pos+4:]
+        userid = url[pos + 4:]
         return userid
 
 
@@ -91,3 +92,8 @@ def checkTimeCooldown(recordTime: datetime) -> bool:
         return True
     else:
         return False
+
+
+def convert_xls_datetime(xls_date):
+    return (datetime(1899, 12, 30)
+            + timedelta(days=xls_date))

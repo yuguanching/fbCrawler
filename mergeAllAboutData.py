@@ -15,7 +15,7 @@ def mergeAllAboutDataToExcel() -> None:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "about"
-    wb.save("./output/allAboutData.xlsx")
+    wb.save(f"{configSetting.output_root}allAboutData.xlsx")
 
     target_names = configSetting.json_array_data['targetName']
 
@@ -25,7 +25,7 @@ def mergeAllAboutDataToExcel() -> None:
     about_data_dict_list = []
     for sub_dir in target_names:
         # 讀取相關的欄位
-        data = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name=None)
+        data = pd.read_excel(f"{configSetting.output_root}{sub_dir}/{file_name}", sheet_name=None)
         about_data_dict_list.append(data)
 
     person_count = 1  # 讓返回總表的超連結跳轉的位置可以鎖定當前的人
@@ -42,7 +42,8 @@ def mergeAllAboutDataToExcel() -> None:
                 value.drop('id', inplace=True, axis=1)
                 func_str_col = Auxiliary.makeHyperlink("about", "__返回總表__", str(person_count))
                 value.insert(len(value.columns), func_str_col, "")
-                writer.pdToExcel(des="./output/allAboutData.xlsx", df=value, sheetName=key, mode='a', indexIsNeed=False, autoFitIsNeed=False)
+                writer.pdToExcel(des=f"{configSetting.output_root}allAboutData.xlsx", df=value,
+                                 sheetName=key, mode='a', indexIsNeed=False, autoFitIsNeed=False)
 
     all_about_df = all_about_df.reset_index()  # 重新定義流水號
     all_about_df.drop('id', inplace=True, axis=1)
@@ -67,7 +68,7 @@ def mergeAllAboutDataToExcel() -> None:
             func_str = Auxiliary.makeHyperlink(exp_sheet_name, "連結")
             all_about_df.at[index, '社群'] = func_str
 
-    writer.pdToExcel(des="./output/allAboutData.xlsx", df=all_about_df, sheetName="about", mode='a', indexIsNeed=False)
+    writer.pdToExcel(des=f"{configSetting.output_root}allAboutData.xlsx", df=all_about_df, sheetName="about", mode='a', indexIsNeed=False)
 
     print("合併完成")
 

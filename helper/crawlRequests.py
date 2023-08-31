@@ -25,15 +25,18 @@ def __getHeaders__(pageurl) -> dict:
     Send a request to get cookieid as headers.
     '''
     fake_user_agent = UserAgent()
-    pageurl = re.sub('www', 'm', pageurl)
-    resp = requests.get(pageurl)
+
     # headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[cookieid]) for cookieid in resp.cookies.get_dict()])
     headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                'accept-language': 'en'}
     headers['ec-ch-ua-platform'] = 'Windows'
     headers['User-Agent'] = str(fake_user_agent.chrome)
     headers['sec-fetch-site'] = "same-origin"
+    headers['origin'] = "https://www.facebook.com"
+    headers['referer'] = pageurl
     # headers['cookie'] = ''
+    pageurl = re.sub('www', 'm', pageurl)
+    resp = requests.get(pageurl)
     headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[
         cookieid]) for cookieid in resp.cookies.get_dict()])
     return headers
@@ -77,12 +80,11 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
         data = {'variables': str({"count": 3,
                                   "cursor": cursor,
                                   "id": pageID,
-                                  "scale": "1",
+                                  "scale": 1,
+                                  "stream_count": 1,
+                                  "UFI2CommentsProvider_commentsKey": "ProfileCometTimelineRoute",
+                                  "feedLocation": "TIMELINE",
                                   "privacySelectorRenderLocation": "COMET_STREAM",
-                                  "feedLocation": "PAGE_TIMELINE",
-                                  "feedbackSource": 22,
-                                  "renderLocation": "timeline",
-                                  "__relay_internal__pv__FBReelsEnableDeferrelayprovider": "false",
                                   "__relay_internal__pv__GroupsCometDelayCheckBlockedUsersrelayprovider": "false",
                                   "__relay_internal__pv__IsWorkUserrelayprovider": "false",
                                   "__relay_internal__pv__IsMergQAPollsrelayprovider": "false",
@@ -91,11 +93,16 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
                 'doc_id': docID,
                 "__a": "1",
                 "__comet_req": "15",
-                "fb_api_req_friendly_name": reqName
+                "fb_api_req_friendly_name": reqName,
+                "server_timestamps": "false"
                 }
         try:
             # 區別在於有沒有使用proxy
-            if (ult_noproxy_count >= configSetting.exception_max_try) and Auxiliary.checkTimeCooldown(record_time_cooldown):
+            if current_time == "":
+                current_time_date = datetime.now()
+            else:
+                current_time_date = datetime.strptime(current_time, "%Y-%m-%d %H:%M:%S")
+            if ((ult_noproxy_count >= configSetting.exception_max_try) and Auxiliary.checkTimeCooldown(record_time_cooldown)) or (current_time_date < configSetting.sp_time):
                 print("觸發大招")
                 resp = session.post(url='https://www.facebook.com/api/graphql/',
                                     data=data,
@@ -158,7 +165,7 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
             else:
                 continue
         finally:
-            time.sleep(random.randint(1, 2))
+            time.sleep(random.randint(1, 3))
     session.close()
     return contents
 

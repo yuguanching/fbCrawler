@@ -19,12 +19,12 @@ def mergeAllFriendzoneDataToExcel() -> None:
     for sub_dir in target_names:
 
         # 讀取相關的欄位
-        friendzoneDataDF = pd.read_excel(f"./output/{sub_dir}/{file_name}", sheet_name="sheet1", usecols="B:L")
+        friendzoneDataDF = pd.read_excel(f"{configSetting.output_root}{sub_dir}/{file_name}", sheet_name="sheet1", usecols="B:L")
         all_friendzone_data_list.append(friendzoneDataDF)
 
     all_friendzone_data = pd.concat(all_friendzone_data_list).reset_index(drop=True)
 
-    writer.pdToExcel(des='./output/allFriendzoneData.xlsx', df=all_friendzone_data, sheetName="sheet1")
+    writer.pdToExcel(des=f'{configSetting.output_root}allFriendzoneData.xlsx', df=all_friendzone_data, sheetName="sheet1")
 
     print("合併完成")
 
