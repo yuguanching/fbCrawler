@@ -1,25 +1,25 @@
-import gevent
 import re
 import json
 import os
-import grequests
 import requests
 import time
+import asyncio
 import configSetting
 import base64
 import traceback
-
+import httpx
+from fake_useragent import UserAgent
+from requests import Session
 from py_mini_racer import MiniRacer
 from queue import Queue
 from bs4 import BeautifulSoup
 
 
-def getNovaFreeProxyList() -> list:
+def getNovaFreeProxyList(s: Session) -> list:
     ip_list = []
     try:
         ctx = MiniRacer()
-        s = requests.session()
-        resp = s.get("https://www.proxynova.com/proxy-server-list/elite-proxies/")
+        resp = s.get("https://www.proxynova.com/proxy-server-list/elite-proxies/", timeout=10)
         soup = BeautifulSoup(resp.text, 'html.parser')
         resp.close()
         rows = soup.find('table', {'id': 'tbl_proxy_list'}).find('tbody').find_all('tr')
@@ -30,7 +30,8 @@ def getNovaFreeProxyList() -> list:
                 if i == 0:
                     try:
                         jsStr = "function scriptRunner(){" + \
-                            str(row_content[i].find('script').text).replace("document.write", "return ") + "} scriptRunner()"
+                            str(row_content[i].find('script').text).replace(
+                                "document.write", "return ") + "} scriptRunner()"
 
                         ip = ctx.eval(jsStr)
                     except:
@@ -46,9 +47,8 @@ def getNovaFreeProxyList() -> list:
     return ip_list
 
 
-def getCZFreeProxyList() -> list:
+def getCZFreeProxyList(s: Session) -> list:
 
-    s = requests.session()
     resp = s.get("http://free-proxy.cz/en/proxylist/country/all/http/uptime/all")
     soup = BeautifulSoup(resp.text, 'html.parser')
     rows = soup.find('table', {'id': 'proxy_list'}).find('tbody').find_all('tr')
@@ -74,9 +74,8 @@ def getCZFreeProxyList() -> list:
     return ip_list
 
 
-def getTaiwanFreeProxyList() -> list:
+def getTaiwanFreeProxyList(s: Session) -> list:
     proxy_ips = []
-    s = requests.session()
     try:
         response = s.get("https://freeproxyupdate.com/taiwan-tw/http", timeout=configSetting.timeout)
         proxy_ip = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', response.text)
@@ -131,12 +130,47 @@ def getFreeProxyList() -> dict:
     s.close()
     return proxt_dict
 
-# async def checkIPHealth(session,ip,url):
-#     proxy = "http://" + ip
-#     # proxies = {'http': ip, 'https': ip}
-#     async with session.get(url,proxy=proxy,timeout=5) as resp:
-#         res_list = await resp
-#         return res_list
+
+async def checkIPAlive(proxyList: list) -> list:
+    task_list = []
+    valid_list = []
+    ua = UserAgent()
+    for ip in proxyList:
+        task_list.append(check(ip, ua))
+    results = await asyncio.gather(*task_list)
+    for r in results:
+        if r != "":
+            valid_list.append(r)
+
+    return valid_list
+
+
+async def check(ip: str, ua: UserAgent) -> str:
+    vote = 0
+    proxy_timeout = 3
+    headers = {'user-agent': ua.chrome}
+    proxies = {"http://": f"http://{ip}", "https://": f"http://{ip}"}
+    async with httpx.AsyncClient(headers=headers, timeout=proxy_timeout, verify=False, proxies=proxies) as client:
+        try:
+            result_1 = await client.get("https://ip4.seeip.org/json")
+        except:
+            result_1 = None
+        try:
+            result_2 = await client.get("https://api.ipify.org?format=json")
+        except:
+            result_2 = None
+        try:
+            result_3 = await client.get("https://www.facebook.com")
+        except:
+            result_3 = None
+
+    if result_1 is not None:
+        vote += 1
+    if result_2 is not None:
+        vote += 1
+    if result_3 is not None:
+        vote += 2
+    return ip if vote >= 2 else ""
 
 
 def gRequestsProxyList(processNum=None) -> list:
@@ -150,18 +184,18 @@ def gRequestsProxyList(processNum=None) -> list:
             else:
                 print(f"行程{processNum} : 異步呼叫,蒐集可用的proxy")
 
-            response_ssl = s.get("https://www.sslproxies.org/")
-            response_anonymous = s.get("https://free-proxy-list.net/anonymous-proxy.html")
-            response_free = s.get("https://free-proxy-list.net/")
+            # response_ssl = s.get("https://www.sslproxies.org/")
+            response_anonymous = s.get("https://free-proxy-list.net/anonymous-proxy.html", timeout=10)
+            response_free = s.get("https://free-proxy-list.net/", timeout=10)
 
-            proxy_ips = getNovaFreeProxyList() + proxy_ips
-            proxy_ips = proxy_ips + re.findall('\d+\.\d+\.\d+\.\d+:\d+', response_ssl.text)  # 「\d+」代表數字一個位數以上
+            proxy_ips = getNovaFreeProxyList(s) + proxy_ips
+            # proxy_ips = proxy_ips + re.findall('\d+\.\d+\.\d+\.\d+:\d+', response_ssl.text)  # 「\d+」代表數字一個位數以上
             proxy_ips = proxy_ips + re.findall('\d+\.\d+\.\d+\.\d+:\d+', response_anonymous.text)
             proxy_ips = proxy_ips + re.findall('\d+\.\d+\.\d+\.\d+:\d+', response_free.text)
-            proxy_ips = getCZFreeProxyList() + proxy_ips
-            proxy_ips = getTaiwanFreeProxyList() + proxy_ips
+            proxy_ips = getCZFreeProxyList(s) + proxy_ips
+            proxy_ips = getTaiwanFreeProxyList(s) + proxy_ips
 
-            response_ssl.close()
+            # response_ssl.close()
             response_anonymous.close()
             response_free.close()
 
@@ -169,30 +203,7 @@ def gRequestsProxyList(processNum=None) -> list:
             proxy_ips_set = set(proxy_ips)
             proxy_ips = list(proxy_ips_set)
 
-            proxy_timeout = 2
-            req_list1 = [grequests.get('https://ip4.seeip.org/json', proxies={'http': ip, 'https': ip}, timeout=proxy_timeout) for ip in proxy_ips]
-            req_list2 = [grequests.get('https://api.ipify.org?format=json',
-                                       proxies={'http': ip, 'https': ip}, timeout=proxy_timeout) for ip in proxy_ips]
-            req_list3 = [grequests.get('https://www.facebook.com', proxies={'http': ip, 'https': ip}, timeout=proxy_timeout) for ip in proxy_ips]
-            res_list1 = grequests.map(req_list1)
-            res_list2 = grequests.map(req_list2)
-            req_list3 = grequests.map(req_list3)
-            for res1, res2, res3, ip in zip(res_list1, res_list2, req_list3, proxy_ips):
-                votes = 0
-                if (res1 is not None):
-                    votes += 1
-                if (res2 is not None):
-                    votes += 1
-                if (res3 is not None):
-                    votes += 2
-                if votes >= 2:
-                    valid_ips.append(ip)
-                if (res1 is not None):
-                    res1.close()
-                if (res2 is not None):
-                    res2.close()
-                if (res3 is not None):
-                    res3.close()
+            valid_ips = asyncio.run(checkIPAlive(proxy_ips))
 
             if len(valid_ips) <= 0:
                 print(f"行程{processNum} 取proxy發生意外錯誤2,等待後重取")
@@ -207,7 +218,7 @@ def gRequestsProxyList(processNum=None) -> list:
             proxy_ips = []
             continue
     s.close()
-    return valid_ips
+    return valid_ips[:20] if len(valid_ips) > 20 else valid_ips
 
 
 def updateProxyAndStatus(proxyCount, tryCount, ProxyIpList, processNum):

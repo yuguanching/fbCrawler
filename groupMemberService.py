@@ -28,15 +28,17 @@ if __name__ == '__main__':
     # target_urls_split = Auxiliary.split(configSetting.jsonArrayData['targetURL'], process_worker)
     # target_names_split = Auxiliary.split(configSetting.jsonArrayData['targetName'], process_worker)
 
-    target_url = "https://www.facebook.com/groups/junrenjulebu"
-    target_name = "中華民國軍人俱樂部"
+    target_url = "https://www.facebook.com/groups/114635859197441"
+    target_name = "2024台灣總統大選最新民調以及賭盤賠率"
     args_list = []
     result_list = []
     proxy_ip_list = proxy.gRequestsProxyList(0)
 
     # customDriver 初始化
-    group_driver = webDriver.groupMemberDriver(driver=None, options=None, isLogin=False)
-    group_driver.setOptions(needHeadless=configSetting.need_headless, needImage=False)
+    group_driver = webDriver.groupMemberDriver(
+        driver=None, options=None, isLogin=False)
+    group_driver.setOptions(
+        needHeadless=configSetting.need_headless, needImage=False)
     group_driver.driverInitialize()
 
     # 只為了取docid 特徵值,為避免搜索清單的項目有a.被FB封鎖的 b.沒有任何朋友的 ,故自行於配置檔設定任意一個活著且含朋友群的pofile連結
@@ -44,18 +46,19 @@ if __name__ == '__main__':
     # 先取一次朋友群的docid特徵值(用意是為了有效減少取特徵值的頻率),此次抓取的friendzone_id不會使用,故不檢查
     # get_docid_profile_url = configSetting.jsonArrayData['personProfileDocidTestURL']
 
-    group_id, group_member_docid, group_member_req_name, _ = idFetcher.fetchEigenvaluesAndID(
-        func=idFetcher.__getGroupMemberSection__, customDriver=group_driver, errString="未能取得社團成員的docid,嘗試換其他帳號試試", pageURL=target_url, checkOption=1)
-
-    os.environ.pop("account_number_now")
+    # group_id, group_member_docid, group_member_req_name, _ = idFetcher.fetchEigenvaluesAndID(
+    #     func=idFetcher.__getGroupMemberSection__, customDriver=group_driver, errString="未能取得社團成員的docid,嘗試換其他帳號試試", pageURL=f'{target_url}/members', checkOption=1)
+    # os.environ.pop("account_number_now")
     group_driver.clearDriver()
+    group_id = "114635859197441"
+    group_member_docid = "6621621524622624"
+    group_member_req_name = "GroupsCometMembersPageNewMembersSectionRefetchQuery"
 
     group_member_list = crawlRequests.crawlGroupMember(pageURL=target_url, fbDTSG=fb_dtsg, cookieStr=cookie_str, groupID=group_id, docID=group_member_docid,
                                                        reqName=group_member_req_name, proxyIpList=proxy_ip_list, processNum=0, targetName=target_name)
 
-    print(len(group_member_list))
-    print("--------------------------------------------")
-    print(group_member_list)
+    parser.buildGroupMemberData(
+        GroupMemberDataList=group_member_list, subDir=target_name)
     # for i in range(process_worker):
     #     jsonArrayData_copy_temp = configSetting.jsonArrayData.copy()
     #     jsonArrayData_copy_temp['targetURL'] = target_urls_split[i]

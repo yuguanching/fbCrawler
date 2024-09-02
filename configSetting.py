@@ -5,11 +5,13 @@ from ioService import reader
 from webManager import webDriver
 from typing import Union
 from datetime import datetime
+from Adaptor.FacebookSourceAdaptor import FacebookSourceAdaptor
+
 
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 json_array_data = reader.readInputJson()
-feedback_manual = False
+operate_by_loading_db = True
 output_root = './output/粉專/'
 
 sp_time = datetime.strptime("2010-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
@@ -47,6 +49,7 @@ timeout_feedback = 60
 cooldown_timedelta = 60
 # 發生任何例外錯誤的容忍次數(使用一次本機公網IP後會重新計數)
 exception_max_try = 100
+
 # ---------- connections settings ----------
 
 
@@ -62,7 +65,8 @@ screenshot_article_count = 10
 implicitly_wait = 20
 
 # 所有類型的webDriver type
-allDriverType = Union[webDriver.postsDriver, webDriver.feedbackDriver, webDriver.friendzoneDriver, webDriver.groupMemberDriver]
+allDriverType = Union[webDriver.postsDriver, webDriver.feedbackDriver,
+                      webDriver.friendzoneDriver, webDriver.groupMemberDriver]
 # ---------- webDriver settings ----------
 
 
@@ -73,3 +77,16 @@ valid_proxy_ip_len = 7
 # 抓回來使用的prxoy_ip_list 全部失效後的重試次數
 proxy_try_count = 30
 # ---------- proxy settings ----------
+
+
+# ---------- db settings ----------
+
+RPA_HOST = os.environ.get("RPA_HOST", "192.168.50.242")
+RPA_USER = os.environ.get("RPA_USER", "jerry_yu")
+RPA_PWD = os.environ.get("RPA_PWD", "Ni998453!!!")
+RPA_DB = os.environ.get("RPA_DB", "facebookData")
+RPA_PORT = int(os.environ.get("RPA_PORT", 3306))
+
+db_adapter = FacebookSourceAdaptor()
+
+# ---------- db settings ----------

@@ -4,21 +4,29 @@ import pandas as pd
 import pprint
 import numpy as np
 import os
+import time
 
-sub_dir = "新聞標題斷詞H1"
-file_name_q1 = f"./output/{sub_dir}/q1_excel.xlsx"
-file_name_q2 = f"./output/{sub_dir}/q2_excel.xlsx"
+sub_dir = "新聞標題斷詞H2"
+root_dir = "./output/特殊任務/"
+file_name_q1 = f"{root_dir}{sub_dir}/q1_excel.xlsx"
+file_name_q2 = f"{root_dir}{sub_dir}/q2_excel.xlsx"
+file_name_q3 = f"{root_dir}{sub_dir}/q3_excel.xlsx"
+
 
 filter_str_q1 = "聚焦臺海"
 filter_str_q2 = "臺海之聲"
+filter_str_q3 = ""
+
 start_date_q1 = "2023-01-01"
 end_date_q1 = "2023-03-31"
 start_date_q2 = "2023-04-01"
 end_date_q2 = "2023-06-30"
+start_date_q3 = "2023-07-01"
+end_date_q3 = "2023-09-30"
 
 
 def start_tag_mission(df: pd.DataFrame, subDir):
-    tag_file = f'./output/{subDir}/tag.xlsx'
+    tag_file = f'{subDir}/tag.xlsx'
     target = df['新聞標題'].tolist()
     tag_raw_df = pd.DataFrame({
         "未處理斷句": target
@@ -44,14 +52,21 @@ df_q1.rename(columns={'Unnamed: 7': '內容概要'}, inplace=True)
 df_q1.dropna(subset=['新聞標題'], inplace=True)  # 去掉無用標題
 df_q1['新聞標題'] = df_q1['新聞標題'].apply(lambda x: pd.NA if filter_str_q1 == x else x).fillna(df_q1['內容概要'])
 
+df_q3 = pd.read_excel(file_name_q3, sheet_name='工作表1', usecols="B,E,F,G")
+df_q3.drop(index=0, inplace=True)
+df_q3.rename(columns={'Unnamed: 1': '陸媒'}, inplace=True)
+df_q3.rename(columns={'Unnamed: 4': '新聞日期'}, inplace=True)
+df_q3.rename(columns={'Unnamed: 5': '新聞標題'}, inplace=True)
+df_q3.rename(columns={'Unnamed: 6': '內容概要'}, inplace=True)
+df_q3.dropna(subset=['新聞標題'], inplace=True)  # 去掉無用標題
+df_q3['新聞標題'] = df_q3['新聞標題'].apply(lambda x: pd.NA if filter_str_q3 == x else x).fillna(df_q3['內容概要'])
 
-#  上半年全部
-half_year_df = pd.concat([df_q1, df_q2], axis=0, ignore_index=True)
+# 全部
+half_year_df = pd.concat([df_q1, df_q2, df_q3], axis=0, ignore_index=True)
 half_year_df.sort_values('新聞日期', ascending=True, inplace=True)  # 排序
 half_year_df['新聞日期'] = half_year_df['新聞日期'].apply(np.int64)
 half_year_df['新聞日期'] = half_year_df['新聞日期'].apply(Auxiliary.convert_xls_datetime)  # 調整日期
-half_year_df = half_year_df[half_year_df['新聞日期'].isin(pd.date_range(start_date_q1, end_date_q2))]
-
+half_year_df = half_year_df[half_year_df['新聞日期'].isin(pd.date_range(start_date_q1, end_date_q3))]
 
 group_dict = dict(list(half_year_df.groupby('陸媒')))
 
@@ -59,17 +74,21 @@ for media in group_dict:
     df_now = group_dict[media]
     df_now_q1 = df_now[df_now['新聞日期'].isin(pd.date_range(start_date_q1, end_date_q1))]
     df_now_q2 = df_now[df_now['新聞日期'].isin(pd.date_range(start_date_q2, end_date_q2))]
-    df_now_h1 = df_now[df_now['新聞日期'].isin(pd.date_range(start_date_q1, end_date_q2))]
+    df_now_q3 = df_now[df_now['新聞日期'].isin(pd.date_range(start_date_q3, end_date_q3))]
+    df_now_h1 = df_now[df_now['新聞日期'].isin(pd.date_range(start_date_q1, end_date_q3))]
 
     if media == "福建日報報業集團\n(海峽導報)":
         media = "福建日報報業集團"
-    q1_dir = f'{sub_dir}/{media}/q1'
-    q2_dir = f'{sub_dir}/{media}/q2'
-    h1_dir = f'{sub_dir}/{media}/h1'
+    q1_dir = f'{root_dir}{sub_dir}/{media}/q1'
+    q2_dir = f'{root_dir}{sub_dir}/{media}/q2'
+    q3_dir = f'{root_dir}{sub_dir}/{media}/q3'
+    h1_dir = f'{root_dir}{sub_dir}/{media}/h1'
 
-    os.makedirs(f'./output/{q1_dir}')
-    os.makedirs(f'./output/{q2_dir}')
-    os.makedirs(f'./output/{h1_dir}')
+    os.makedirs(f'{q1_dir}')
+    os.makedirs(f'{q2_dir}')
+    os.makedirs(f'{q3_dir}')
+    os.makedirs(f'{h1_dir}')
     start_tag_mission(df=df_now_q1, subDir=q1_dir)
     start_tag_mission(df=df_now_q2, subDir=q2_dir)
+    start_tag_mission(df=df_now_q3, subDir=q3_dir)
     start_tag_mission(df=df_now_h1, subDir=h1_dir)

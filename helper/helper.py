@@ -13,7 +13,8 @@ from ioService import writer, reader
 
 def __parsingFriendzoneNov__(resp: requests.Response) -> tuple[list, str]:
     edge_list = []
-    writer.writeTempFile(filename="sourceCode_friendzone_edge", content=resp.text)
+    writer.writeTempFile(
+        filename="sourceCode_friendzone_edge", content=resp.text)
     resp = json.loads(resp.text.split('\r\n', -1)[0])
     temp_cursor = ""
 
@@ -31,11 +32,12 @@ def __parsingFriendzoneNov__(resp: requests.Response) -> tuple[list, str]:
 
 def __parsingGroupMember__(resp: requests.Response) -> tuple[list, str]:
     edge_list = []
-    writer.writeTempFile(filename="sourceCode_group_member_edge", content=resp.text)
+    writer.writeTempFile(
+        filename="sourceCode_group_member_edge", content=resp.text)
     resp = json.loads(resp.text.split('\r\n', -1)[0])
     temp_cursor = ""
 
-    for raw_edge in resp['data']['node']['new_forum_members']['edges']:
+    for raw_edge in resp['data']['node']['new_members']['edges']:
         try:
             edge = rawDataResolve.__resolverEdgesGroupMember__(raw_edge)
             temp_cursor = edge["cursor"]
@@ -43,7 +45,7 @@ def __parsingGroupMember__(resp: requests.Response) -> tuple[list, str]:
         except Exception as e:
             print(traceback.format_exc())
             continue
-    temp_cursor = resp['data']['node']['new_forum_members']['page_info']['end_cursor']
+    temp_cursor = resp['data']['node']['new_members']['page_info']['end_cursor']
     cursor = temp_cursor
     return edge_list, cursor
 
@@ -55,8 +57,10 @@ def __parsingSectionAbout__(resp: requests.Response, aboutNumber) -> list:
 
     for i, res in enumerate(resps):
         try:
-            check = json.loads(res)['data']['user']['about_app_sections']['nodes']
-            res_dict = rawDataResolve.__resolverEdgesSectionAbout__(check[0], aboutNumber=aboutNumber)
+            check = json.loads(
+                res)['data']['user']['about_app_sections']['nodes']
+            res_dict = rawDataResolve.__resolverEdgesSectionAbout__(
+                check[0], aboutNumber=aboutNumber)
             edge_list.append(res_dict)
         except Exception as e:
             continue
@@ -90,7 +94,8 @@ def __parsingProfileComet__(resp: requests.Response) -> tuple[list, str, bool, b
                                 if is_up_to_time:
                                     edge_list.append(edge)
                             else:
-                                writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
+                                writer.writeLogToFile(
+                                    traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
 
                         except Exception as e:
                             print(traceback.format_exc())
@@ -101,11 +106,13 @@ def __parsingProfileComet__(resp: requests.Response) -> tuple[list, str, bool, b
                     edge = rawDataResolve.__resolverEdgesPage__(raw_edge)
                     temp_cursor = edge["cursor"]
                     if edge["creation_time"] != 0:
-                        is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"])
+                        is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(
+                            edge["creation_time"])
                         if is_up_to_time:
                             edge_list.append(edge)
                     else:
-                        writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
+                        writer.writeLogToFile(
+                            traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
                 except Exception as e:
                     print(traceback.format_exc())
                     continue
@@ -137,11 +144,13 @@ def __parsingCometModern__(resp: requests.Response) -> tuple[list, str, bool, bo
             edge = rawDataResolve.__resolverEdgesPage__(raw_edge)
             temp_cursor = edge["cursor"]
             if edge["creation_time"] != 0:
-                is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"])
+                is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(
+                    edge["creation_time"])
                 if is_up_to_time:
                     edge_list.append(edge)
             else:
-                writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
+                writer.writeLogToFile(
+                    traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
         except Exception as e:
             print(traceback.format_exc())
             continue
@@ -155,7 +164,8 @@ def __parsingCometModern__(resp: requests.Response) -> tuple[list, str, bool, bo
 
 def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, bool, str]:
     edge_list = []
-    writer.writeTempFile(filename="sourceCode_group_posts_edge", content=resp.text)
+    writer.writeTempFile(
+        filename="sourceCode_group_posts_edge", content=resp.text)
     resps = resp.text.split('\n', -1)
     temp_cursor = ""
     temp_time = ""
@@ -165,7 +175,7 @@ def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, boo
         check = json.loads(res)['data']
         try:
             if len(check['node']['group_feed']['edges']) == 0:
-                return [], "", is_up_to_time, arrive_first_catch_time
+                return [], "", is_up_to_time, arrive_first_catch_time, temp_time
             else:
                 for raw_edge in check['node']['group_feed']['edges']:
                     try:
@@ -177,11 +187,13 @@ def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, boo
                         edge = rawDataResolve.__resolverEdgesPage__(raw_edge)
                         temp_cursor = edge["cursor"]
                         if edge["creation_time"] != 0:
-                            is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"])
+                            is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(
+                                edge["creation_time"])
                             if is_up_to_time:
                                 edge_list.append(edge)
                         else:
-                            writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
+                            writer.writeLogToFile(
+                                traceBack=f"*規格不符的文章資料* 回傳資料待查：{str(raw_edge)}")
                     except Exception as e:
                         print(traceback.format_exc())
                         continue
@@ -194,7 +206,7 @@ def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, boo
     return edge_list, cursor, is_up_to_time, arrive_first_catch_time, time_now
 
 
-def __parsingFeedback__(resp: requests.Response, posts_count) -> tuple[list, str]:
+def __parsingFeedback__(resp: requests.Response, posts_count, feedback_id, article_id) -> tuple[list, str]:
     edge_list = []
     resps = json.loads(resp.text.split('\r\n', -1)[0])
     temp_cursor = ""
@@ -206,7 +218,7 @@ def __parsingFeedback__(resp: requests.Response, posts_count) -> tuple[list, str
 
     for raw_edge in resps['data']['node']['reshares']['edges']:
         try:
-            edge = rawDataResolve.__resolverEdgesFeedback__(raw_edge, posts_count)
+            edge = rawDataResolve.__resolverEdgesFeedback__(raw_edge, posts_count, feedback_id, article_id)
             temp_cursor = edge["cursor"]
             edge_list.append(edge)
         except Exception as e:
@@ -236,7 +248,9 @@ def __parsingComments__(resp: requests.Response, posts_count) -> list:
         edge_list.append(dict_output)
         return edge_list
     else:
-        edges = check['ufi_renderer']['feedback']['comment_list_renderer']['feedback']['display_comments']['edges']
+        edges = check["ufi_renderer"]["feedback"]["comment_list_renderer"]["feedback"][
+            "comment_rendering_instance_for_feed_location"
+        ]["comments"]["edges"]
         if len(edges) != 0:
             try:
                 dict_output["content"] = edges[0]['node']['body']['text']
@@ -290,6 +304,6 @@ def hasNextPageFriendzone(resp: requests.Response) -> bool:
 
 def hasNextPageGroupMember(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
-    has_next_page = resp['data']['node']['new_forum_members']['page_info']['has_next_page']
+    has_next_page = resp['data']['node']['new_members']['page_info']['has_next_page']
 
     return has_next_page

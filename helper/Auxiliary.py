@@ -5,6 +5,7 @@ import pandas as pd
 import time
 import configSetting
 
+from PIL import Image
 from datetime import datetime, timedelta
 from ioService import writer, reader
 
@@ -33,7 +34,7 @@ def checkDirAndCreate(targetName) -> None:
 
 
 def detectURL(str: str) -> str:
-    return ((str.find("http://") == -1) and (str.find("https://") == -1))
+    return ((str.find("http://") == -1) and (str.find("https://") == -1) and (str.find("=") == -1))
 
 
 def dateCompare(targetTimeStamp) -> tuple[bool, bool, str]:
@@ -95,5 +96,30 @@ def checkTimeCooldown(recordTime: datetime) -> bool:
 
 
 def convert_xls_datetime(xls_date):
-    return (datetime(1899, 12, 30)
-            + timedelta(days=xls_date))
+    return (datetime(1899, 12, 30) + timedelta(days=xls_date))
+
+
+def image_compress(image_path: str) -> None:
+    image = Image.open(image_path)
+
+    width, height = image.size
+    new_size = (round(width * 0.6), round(height * 0.6))
+    new_image = image.resize(new_size)
+    new_image.save(image_path, optimize=True)
+    time.sleep(1)
+    return
+
+
+def is_chinese(string):
+    """
+    检查整个字符串是否为中文
+    Args:
+        string (str): 需要检查的字符串,包含空格也是False
+    Return
+        bool
+    """
+    for chart in string:
+        if chart < u'\u4e00' or chart > u'\u9fff':
+            return False
+
+    return True

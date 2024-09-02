@@ -21,49 +21,75 @@ def __resolverEdgesPage__(edge) -> dict:
         creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
         # message
         try:
-            message = comet_sections_['content']['story']['comet_sections'].get('message', '').get('story', '').get(
-                'message', '').get('text', '') if comet_sections_['content']['story']['comet_sections'].get('message', '') else ''
+            message = comet_sections_['content']['story']['message']['text']
         except:
             try:
-                message = comet_sections_['content']['story']['comet_sections']['message']['rich_message'][0]['text']
+                message = comet_sections_['content']['story']['comet_sections'].get('message', '').get('story', '').get(
+                    'message', '').get('text', '') if comet_sections_['content']['story']['comet_sections'].get('message', '') else ''
             except:
-                message = ""
+                try:
+                    message = comet_sections_[
+                        'content']['story']['comet_sections']['message']['rich_message'][0]['text']
+                except:
+                    message = ""
 
         message = ILLEGAL_CHARACTERS_RE.sub(r'', message)
+
+        # article_type
+        article_type = 0
+        if 'attached_story' in comet_sections_['content']['story'] and comet_sections_['content']['story']['attached_story'] is not None:
+            article_type = 2
+        else:
+            article_type = 1
         # postid
-        # 2023/06/27 暫時不確定是否會用到
         postid = edge['node']['post_id']
         # actorid
         pageid = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['id']
-        # comment_count 留言
+
         try:
-            comment_count = comet_sections_[
-                'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['display_comments_count']['count']
+            feedback_main_node = comet_sections_[
+                "feedback"]["story"]["comet_feed_ufi_container"]["story"]["story_ufi_container"]["story"]["feedback_context"]["feedback_target_with_context"]
+            # comment_count 留言
+            comment_count = feedback_main_node["comment_rendering_instance"]["comments"]["total_count"]
+
+            # reaction_count 按讚
+            reaction_count = feedback_main_node["comet_ufi_summary_and_actions_renderer"]["feedback"]["reaction_count"]["count"]
+            # share_count 分享
+            share_count = feedback_main_node["comet_ufi_summary_and_actions_renderer"]["feedback"]["share_count"]["count"]
+
+            # feedback_id
+            feedback_id = comet_sections_[
+                'feedback']['story']['comet_feed_ufi_container']['story']['feedback_context']['feedback_target_with_context']['id']
         except:
+            # 確認有
+            feedback_main_node = comet_sections_[
+                "feedback"]["story"]["story_ufi_container"]["story"]["feedback_context"]["feedback_target_with_context"]["comet_ufi_summary_and_actions_renderer"]["feedback"]
+
+            # comment_count 留言
             try:
-                comment_count = comet_sections_[
-                    'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['total_comment_count']
+                comment_count = feedback_main_node["comment_rendering_instance"]["comments"]["total_count"]
             except:
-                try:
-                    comment_count = comet_sections_[
-                        'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comment_list_renderer']['feedback']['comment_count']['total_count']
-                except:
-                    comment_count = 0
+                print("沒有抓到正確留言數")
+                comment_count = 0
 
-        # reaction_count 按讚
-        reaction_count = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['reaction_count']['count']
-        # share_count 分享
-        share_count = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['share_count']['count']
-        # top_reactions
-        top_reactions = comet_sections_[
-            'feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['comet_ufi_summary_and_actions_renderer']['feedback']['cannot_see_top_custom_reactions']['top_reactions']['edges']
+            # reaction_count 按讚
+            reaction_count = feedback_main_node["reaction_count"]["count"]
 
-        # feedback_id
-        feedback_id = comet_sections_['feedback']['story']['feedback_context']['feedback_target_with_context']['ufi_renderer']['feedback']['id']
+            # share_count 分享
+            share_count = feedback_main_node["share_count"]["count"]
+
+            # feedback_id
+            feedback_id = comet_sections_["feedback"]["story"]["feedback_context"]["feedback_target_with_context"]["id"]
         # url
         url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['url']
+
+        # poster_name
+        poster_name = comet_sections_['content']['story']['actors'][0]['name']
+
+        # poster_url
+        poster_url = comet_sections_['content']['story']['actors'][0]['url']
+        if poster_url == "":
+            poster_url = f"https://www.facebook.com/profile.php?id={comet_sections_['content']['story']['actors'][0]['id']}"
     # cursor
     except:
         writer.writeLogToFile(traceBack=f"*規格不符的文章資料* 錯誤細節待查：{traceback.format_exc()}")
@@ -76,15 +102,19 @@ def __resolverEdgesPage__(edge) -> dict:
         comment_count = ""
         reaction_count = ""
         share_count = ""
-        top_reactions = ""
         feedback_id = ""
         url = ""
+        poster_name = ""
+        poster_url = ""
 
-    # image url
-    if len(comet_sections_['content']['story']['attachments']) == 0:
-        image_url = ""
-    else:
-        try:
+    image_url = ""
+    video_url = ""
+    try:
+        attachments_type = comet_sections_["content"]["story"]["attachments"][0]["target"]["__typename"]
+
+        if attachments_type == "Video":
+            video_url = comet_sections_["content"]["story"]["attachments"][0]["styles"]["attachment"]["url"]
+        elif attachments_type == "Photo":
             attach_obj = comet_sections_['content']['story']['attachments'][0]['styles']['attachment']
             # 單張圖片
             if "media" in attach_obj:
@@ -104,15 +134,8 @@ def __resolverEdgesPage__(edge) -> dict:
                     image_url = ""
             else:
                 image_url = ""
-        except:
-            print("這篇文章不含圖片格式供抓取,可能是分享影片格式")
-            image_url = ""
-
-    # video_url
-    try:
-        video_url = comet_sections_['content']['story']['attachments'][0]['styles']['attachment']['media']['url']
     except:
-        video_url = ""
+        print(f"這篇文章不含多媒體資源: {url}")
 
     cursor = edge['cursor']
 
@@ -124,30 +147,52 @@ def __resolverEdgesPage__(edge) -> dict:
         "post_id": postid,
         "page_id": pageid,
         "feedback_id": feedback_id,
+        "article_type": article_type,
         "comment_count": comment_count,
         "reaction_count": reaction_count,
         "share_count": share_count,
-        "top_reactions": top_reactions,
         "url": url,
         "image_url": image_url,
         "video_url": video_url,
-        "cursor": cursor
+        "cursor": cursor,
+        "poster_name": poster_name,
+        "poster_url": poster_url
     }
 
     return dict_output
-    # return [name, creation_time, message, postid, pageid,feedback_id, comment_count, reaction_count, share_count, top_reactions,url,image_url, cursor]
+    # return [name, creation_time, message, postid, pageid,feedback_id, comment_count, reaction_count, share_count,url,image_url, cursor]
 
 
-def __resolverEdgesFeedback__(edge, posts_count) -> dict:
+def __resolverEdgesFeedback__(edge, posts_count, feedback_id, article_id) -> dict:
     comet_sections_ = edge['node']['comet_sections']
     ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
 
     # 特殊的tracking data, 主要是為了抓正確格式的sharer id, 一般欄位的id似乎是加密過的,不好閱讀ex : pfbid02c61dhddXYmAexrJck1GREeLrxuBVZmkkLM7vTBwCbmxqEfmcntm68c77Nrbhn8WJl
-    tracking_data_str = comet_sections_['feedback']['story']['tracking']
+    try:
+        tracking_data_str = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['tracking']
+    except:
+        tracking_data_str = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['tracking']
     tracking_data = json.loads(tracking_data_str)
+
+    # 單筆分享行為的識別id
+    share_event_id = edge['node']['feedback']['id']
+
+    # 分享者id
+    sharer_id = tracking_data['content_owner_id_new']
 
     # 分享者名稱
     sharer_name = comet_sections_['context_layout']['story']['comet_sections']['title']['story']['actors'][0]['name']
+
+    # 分享者網址
+    sharer_url = f"https://www.facebook.com/profile.php?id={sharer_id}"
+
+    # 分享者類型
+    # 若是粉專，則存在delegate_page_id，若無法取得，則代表為個人
+    try:
+        delegate_page_id = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['delegate_page']['id']
+        sharer_type = 2
+    except:
+        sharer_type = 1
 
     # 分享時間
     try:
@@ -158,8 +203,6 @@ def __resolverEdgesFeedback__(edge, posts_count) -> dict:
         except:
             create_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][2]['story']['creation_time']
 
-    # 分享者id
-    sharer_id = tracking_data['content_owner_id_new']
     # 內容
     contents_check_point = comet_sections_['content']['story']['comet_sections']['message']
     if contents_check_point is None:
@@ -191,7 +234,10 @@ def __resolverEdgesFeedback__(edge, posts_count) -> dict:
         been_sharer_id = ""
 
     # 分享行為產生的單頁連結
-    permalink = comet_sections_['feedback']['story']['url']
+    try:
+        permalink = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['url']
+    except:
+        permalink = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['url']
     if permalink is None:
         permalink = ""
 
@@ -199,10 +245,15 @@ def __resolverEdgesFeedback__(edge, posts_count) -> dict:
     cursor = edge['cursor']
 
     dict_output = {
+        "share_event_id": share_event_id,
         "posts_count": str(posts_count),
-        "sharer_name": sharer_name,
+        "article_id": article_id,
+        "feedback_id": feedback_id,
         "create_time": create_time,
         "sharer_id": sharer_id,
+        "sharer_name": sharer_name,
+        "sharer_url": sharer_url,
+        "sharer_type": sharer_type,
         "contents": contents,
         "been_sharer_raw_name": been_sharer_raw_name,
         "been_sharer_id": been_sharer_id,
@@ -249,42 +300,51 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
                     else:
                         match number:
                             case 0:  # 工作
-                                work_name_list.append(profile_fields[inner_number]['title']['text'])
+                                work_name_list.append(
+                                    profile_fields[inner_number]['title']['text'])
                                 if len(profile_fields[inner_number]['list_item_groups']) != 0:
-                                    work_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                    work_date_list.append(
+                                        profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     work_date_list.append("")
                                 if len(profile_fields[inner_number]['title']['ranges']) != 0:
                                     if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         work_link_list.append("")
                                     else:
-                                        work_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                                        work_link_list.append(
+                                            profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     work_link_list.append("")
                             case 1:  # 大專院校
-                                college_name_list.append(profile_fields[inner_number]['title']['text'])
+                                college_name_list.append(
+                                    profile_fields[inner_number]['title']['text'])
                                 if len(profile_fields[inner_number]['list_item_groups']) != 0:
-                                    college_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                    college_date_list.append(
+                                        profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     college_date_list.append("")
                                 if len(profile_fields[inner_number]['title']['ranges']) != 0:
                                     if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         college_link_list.append("")
                                     else:
-                                        college_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                                        college_link_list.append(
+                                            profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     college_link_list.append("")
                             case 2:  # 高中
-                                highSchool_name_list.append(profile_fields[inner_number]['title']['text'])
+                                highSchool_name_list.append(
+                                    profile_fields[inner_number]['title']['text'])
                                 if len(profile_fields[inner_number]['list_item_groups']) != 0:
-                                    highSchool_date_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                    highSchool_date_list.append(
+                                        profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 else:
                                     highSchool_date_list.append("")
                                 if len(profile_fields[inner_number]['title']['ranges']) != 0:
                                     if profile_fields[inner_number]['title']['ranges'][0]['entity'] is None:
                                         highSchool_link_list.append("")
                                     else:
-                                        highSchool_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                                        highSchool_link_list.append(
+                                            profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                 else:
                                     highSchool_link_list.append("")
 
@@ -322,10 +382,14 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
                     if profile_fields[inner_number]['field_type'] == "null_state":
                         break
                     else:
-                        live_name_list.append(profile_fields[inner_number]['title']['text'])
-                        live_type_list.append(profile_fields[inner_number]['field_type'])  # current_city、hometown
+                        live_name_list.append(
+                            profile_fields[inner_number]['title']['text'])
+                        # current_city、hometown
+                        live_type_list.append(
+                            profile_fields[inner_number]['field_type'])
                         if len(profile_fields[inner_number]['title']['ranges']) != 0:
-                            live_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                            live_link_list.append(
+                                profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                         else:
                             live_link_list.append("")
 
@@ -373,7 +437,8 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
                                         # print(f"{profile_fields[inner_number]['field_type']} 不是欲收集的聯絡資料")
                             case 1:  # 社群
                                 social_name_list.append(profile_fields[inner_number]['title']['text'])
-                                social_type_list.append(profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
+                                social_type_list.append(
+                                    profile_fields[inner_number]['list_item_groups'][0]['list_items'][0]['text']['text'])
                                 if profile_fields[inner_number]['link_url'] is None:
                                     social_link_list.append(profile_fields[inner_number]['title']['text'])
                                 else:
@@ -422,15 +487,18 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
                     else:
                         match number:
                             case 0:  # 感情狀況
-                                if len(profile_fields[inner_number]['list_item_groups']) != 0:  # 單身
+                                # 單身
+                                if len(profile_fields[inner_number]['list_item_groups']) != 0:
                                     relationship_name_list.append(profile_fields[inner_number]['title']['text'])
                                     relationship_type_list.append("情侶")
                                     if len(profile_fields[inner_number]['title']['ranges']) != 0:
-                                        relationship_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                                        relationship_link_list.append(
+                                            profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                     else:
                                         relationship_link_list.append("")
                             case 1:  # 家人與親屬
-                                relationship_name_list.append(profile_fields[inner_number]['title']['text'])
+                                relationship_name_list.append(
+                                    profile_fields[inner_number]['title']['text'])
 
                                 if len(profile_fields[inner_number]['list_item_groups']) != 0:
                                     relationship_type_list.append(profile_fields[inner_number]
@@ -439,7 +507,8 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
                                     relationship_type_list.append("")
 
                                 if len(profile_fields[inner_number]['title']['ranges']) != 0:
-                                    relationship_link_list.append(profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
+                                    relationship_link_list.append(
+                                        profile_fields[inner_number]['title']['ranges'][0]['entity']['url'])
                                     if relationship_link_list[-1] is None:
                                         relationship_link_list[-1] = ""
                                 else:
