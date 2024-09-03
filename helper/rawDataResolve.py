@@ -531,22 +531,30 @@ def __resolverEdgesSectionAbout__(edge, aboutNumber) -> dict:
 
 
 def __resolverEdgesFriendzone__(edge) -> dict:
-    name = edge['node']['title']['text']
-    profile_url = edge['node']['url']
-    cursor = edge['cursor']
-    user_id = edge['node']['node']['id']
+    try:
+        name = edge['node']['title']['text']
+        profile_url = edge['node']['url']
+        cursor = edge['cursor']
+        user_id = edge['node']['node']['id']
+        if "uri" in edge['node']['image'] and edge['node']['image']['uri'] is not None:
+            photo_url = edge['node']['image']['uri']
+        else:
+            photo_url = ""
 
-    if profile_url is None:
-        profile_url = "https://www.facebook.com/profile.php?id=" + user_id
+        if profile_url is None:
+            profile_url = "https://www.facebook.com/profile.php?id=" + user_id
 
-    dict_output = {
-        "name": name,
-        "url": profile_url,
-        "userID": user_id,
-        "cursor": cursor
-    }
-
-    return dict_output
+        dict_output = {
+            "username": name,
+            "profile_url": profile_url,
+            "user_id": user_id,
+            "photo_url": photo_url,
+            "cursor": cursor
+        }
+        print(dict_output)
+        return dict_output
+    except:
+        print(traceback.format_exc())
 
 
 def __resolverEdgesGroupMember__(edge) -> dict:

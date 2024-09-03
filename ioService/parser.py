@@ -388,24 +388,24 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
     # ------------------------------寫檔到sheet: sharer -------------------------------------
     writer.pdToExcel(des=excel_file, df=sharer_df, sheetName="sharer", mode='a')
     # ----------------------彙整好分享者統計資料後,抓取分享者的個人頁面截圖-------------------------
-    # count = 0
-    # for s_url in sharer_df["分享者個人頁面"].tolist():
-    #     if s_url == "":
-    #         continue
-    #     else:
-    #         if count >= configSetting.screenshot_count:
-    #             time.sleep(random.randint(1, 2))
-    #             break
-    #         else:
-    #             print("開始擷取分享者個人頁面的圖片,id : " + str(count))
-    #             try:
-    #                 if screenshotDriver._getSource(s_url, count, 0, subDir, None):
-    #                     count += 1
-    #                 else:
-    #                     continue
-    #             except Exception as e:
-    #                 print(f"分享者個人頁面圖片截取失敗, 錯誤訊息:{e}")
-    #                 count += 1
+    count = 0
+    for s_url in sharer_df["分享者個人頁面"].tolist():
+        if s_url == "":
+            continue
+        else:
+            if count >= configSetting.screenshot_count:
+                time.sleep(random.randint(1, 2))
+                break
+            else:
+                print("開始擷取分享者個人頁面的圖片,id : " + str(count))
+                try:
+                    if screenshotDriver._getSource(s_url, count, 0, subDir, None):
+                        count += 1
+                    else:
+                        continue
+                except Exception as e:
+                    print(f"分享者個人頁面圖片截取失敗, 錯誤訊息:{e}")
+                    count += 1
 
     # -----------------------產生被分享者統整資料,並寫到sheet: been_sharer --------------------------------------
 
@@ -466,9 +466,8 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
 
     # ------------------------------產生異常帳號彙整表-------------------------------------
     dataparse_file = f"{configSetting.output_root}{subDir}/dataParse.xlsx"
-    share_data_df = pd.read_excel(dataparse_file, sheet_name="sharerData", usecols="E:L")
     sharer_df = pd.read_excel(dataparse_file, sheet_name="sharer", usecols="D:K")
-    buildAberrantAccountDataSet(shareDataDF=share_data_df, sharerDF=sharer_df, subDir=subDir)
+    buildAberrantAccountDataSet(sharerDF=sharer_df, subDir=subDir)
     # ------------------------------產生異常帳號彙整表-------------------------------------
 
     print("批次資料整理完畢")
@@ -928,7 +927,7 @@ def buildGroupMemberData(GroupMemberDataList, subDir) -> None:
     writer.pdToExcel(des=excel_file, df=df, sheetName="sheet1")
 
 
-def buildAberrantAccountDataSet(shareDataDF: pd.DataFrame, sharerDF: pd.DataFrame, subDir: str):
+def buildAberrantAccountDataSet(sharerDF: pd.DataFrame, subDir: str):
 
     sharerDF = sharerDF[sharerDF['分享次數'] >= 5]  # 只有分享次數大於5是彙整的目標
     sharerDF = sharerDF[sharerDF['分享者類型'] == 1]  # 只蒐集個人類型的分享者
@@ -947,7 +946,6 @@ def buildAberrantAccountDataSet(shareDataDF: pd.DataFrame, sharerDF: pd.DataFram
     if len(temp_list) > 0:
         target_user_list_group.append(temp_list.copy())
 
-    share_data_grouping_by_name = dict(list(shareDataDF.groupby('分享者名稱')))
     for file_idx, group_user_list in enumerate(target_user_list_group):
         # 彙整表格模板
         df_template = pd.DataFrame({
@@ -970,34 +968,14 @@ def buildAberrantAccountDataSet(shareDataDF: pd.DataFrame, sharerDF: pd.DataFram
             '異常帳號紀錄暨特殊情形分析報告': []
         })
         for idx, user_name in enumerate(group_user_list):
-            target_now = share_data_grouping_by_name[user_name]  # 目標帳號的分享者資料
             # 目標帳號的分享聚合資料
             target_now_detail = sharerDF.loc[sharerDF['分享者名稱'] == user_name]
             # 每一群excel抽出第一個帳號撰寫對應的異常帳號分析表word檔
             if idx == 0:
                 writer.genernate_abnormal_account_word(
                     account_name=user_name, profile_url=target_now_detail.iloc[0]['分享者個人頁面'], subDir=subDir, index=file_idx)
-            # 去掉分享到個人頁面而非社團的資料
-            target_now.dropna(subset='被分享者名稱', inplace=True)
-            target_share_list = []
-            if not target_now.empty:
-                #  取前三個分享社團
-                grouping_count_by_been_sharer = list(target_now.groupby('被分享者名稱').size().sort_values(ascending=False).head(3).keys())
-                target_share_list = grouping_count_by_been_sharer.copy()
 
             # 開始產生帳號彙整資料
-            share_to_str = ""
-            article_standpoint_str = ""
-
-            if len(target_share_list) == 0:
-                share_to_str = f"「{subDir}」粉專文章皆轉發至個人動態頁面，並無轉發至其他特定社團。"
-                article_standpoint_str = f"本身個人動態皆係轉發粉專貼文，引發我國人內部對立之文章，議題有「」、「」、「」等。"
-            else:
-                share_to_str = f"轉發「{subDir}」粉專文章到「{target_share_list.pop(0)}」"
-                article_standpoint_str = f"本身個人動態並無發表貼文，但其轉發皆係引發我國人內部對立之文章，議題有「」、「」、「」等。"
-                while len(target_share_list) != 0:
-                    share_to_str += f"、「{target_share_list.pop(0)}」"
-
             row = pd.DataFrame.from_dict({
                 '項次': [idx+1],
                 '帳號名稱': [f"{target_now_detail.iloc[0]['分享者名稱']}"],

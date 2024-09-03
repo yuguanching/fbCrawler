@@ -11,7 +11,7 @@ from Adaptor.FacebookSourceAdaptor import FacebookSourceAdaptor
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 json_array_data = reader.readInputJson()
-operate_by_loading_db = True
+operate_by_loading_db = False
 output_root = './output/粉專/'
 
 sp_time = datetime.strptime("2010-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")

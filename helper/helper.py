@@ -13,9 +13,8 @@ from ioService import writer, reader
 
 def __parsingFriendzoneNov__(resp: requests.Response) -> tuple[list, str]:
     edge_list = []
-    writer.writeTempFile(
-        filename="sourceCode_friendzone_edge", content=resp.text)
     resp = json.loads(resp.text.split('\r\n', -1)[0])
+    print(resp)
     temp_cursor = ""
 
     for edge in resp['data']['node']['pageItems']['edges']:
@@ -294,8 +293,11 @@ def hasNextPageFeedback(resp: requests.Response) -> bool:
 
 def hasNextPageFriendzone(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
-    if 'pageItems' in resp['data']['node']:
-        has_next_page = resp['data']['node']['pageItems']['page_info']['has_next_page']
+    if 'pageItems' in resp['data']['node'] and resp['data']['node']['pageItems'] is not None:
+        if 'page_info' in resp['data']['node']['pageItems'] and resp['data']['node']['pageItems']['page_info'] is not None:
+            has_next_page = resp['data']['node']['pageItems']['page_info']['has_next_page']
+        else:
+            has_next_page = False
     else:
         has_next_page = False
 

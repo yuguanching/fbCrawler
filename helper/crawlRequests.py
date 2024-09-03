@@ -18,6 +18,7 @@ from ioService import writer, reader
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ProtocolError
 from requests.exceptions import ProxyError, ConnectTimeout, SSLError, ConnectionError, ChunkedEncodingError
 from http.client import HTTPConnection
+from module.facebook_module import facebookUser, facebookFriend
 
 
 def __getHeaders__(pageurl) -> dict:
@@ -361,8 +362,7 @@ def crawlFeedback(pageURL, article_id, postsCount, feedbackID, docID, reqName, f
 
             # 沒有使用多執行緒的走這邊
             if queueSignal is None:
-                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(
-                    proxy_count, try_count, proxy_ip_list, processNum)
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
             else:
                 proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
                     proxy_count, try_count, proxy_ip_list, processNum, postsCount, len(contents), queueSignal)
@@ -657,12 +657,16 @@ def crawlFriendzone(pageURL, friendzoneID, docID, reqName, proxyIpList, processN
 
     while True:
        # print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
-        data = {'variables': str({
-            "cursor": cursor,
-            "id": friendzoneID,
-            "scale": "1",
-        }),
-            'doc_id': docID}
+        data = {
+            'variables': str(
+                {
+                    "cursor": cursor,
+                    "id": friendzoneID,
+                    "scale": 1
+                }
+            ),
+            'doc_id': docID
+        }
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
                                 data=data,
@@ -688,8 +692,7 @@ def crawlFriendzone(pageURL, friendzoneID, docID, reqName, proxyIpList, processN
         except Exception as e:
             if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
                 writer.writeLogToFile(traceBack=traceback.format_exc())
-                writer.writeLogToFile(
-                    traceBack=f"friendzone_id: {friendzoneID}, docid: {docID}, cursor: {cursor}")
+                writer.writeLogToFile(traceBack=f"friendzone_id: {friendzoneID}, docid: {docID}, cursor: {cursor}")
 
             proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(
                 proxy_count, try_count, proxy_ip_list, processNum)
@@ -789,3 +792,105 @@ def crawlGroupMember(pageURL, fbDTSG, cookieStr, groupID, docID, reqName, proxyI
             time.sleep(random.randint(1, 2))
     session.close()
     return contents
+
+
+def crawlFriendzone_new(facebookUser: facebookUser, fb_dtsg: dict, processNum: int, queue: Queue = None, queueSignal: Queue = None) -> list:
+    try_count = 0  # 全任務使用各種IP重試的次數統計
+    proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
+    proxy_ip_list = json.loads(os.environ['proxy_list'])
+    random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+    contents = []
+    cursor = ''
+    headers = __getHeaders__(facebookUser.profile_url)
+    headers["cookie"] = f"{headers['cookie']};c_user={fb_dtsg['c_user']};xs={fb_dtsg['xs']};"
+
+    session = requests.session()
+    # 設定失敗重試策略
+    retry_strategy = Retry(
+        total=configSetting.retry,
+        status_forcelist=[429, 500, 502, 503, 504],
+        method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
+        backoff_factor=0.5
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    while True:
+       # print(f"行程{process_num} {targetName}:當前的標記 : {cursor}")
+        data = {
+            'variables': str(
+                {
+                    "cursor": cursor,
+                    "id": facebookUser.friendzone_id,
+                    "scale": 1,
+                    "count": 8
+                }
+            ),
+            'doc_id': facebookUser.friendzone_docid,
+            'fb_dtsg': fb_dtsg["fb_dtsg"]
+        }
+        print(f"input data:{data}")
+        try:
+            resp = session.post(url='https://www.facebook.com/api/graphql/',
+                                data=data,
+                                headers=headers,
+                                timeout=configSetting.timeout,
+                                verify="./config/certs.pem",
+                                proxies={'http': random_proxy_ip, "https": random_proxy_ip})
+            print(resp.text)
+            if facebookUser.friendzone_reqname == 'ProfileCometAppCollectionListRendererPaginationQuery':
+                edge_list, cursor_now = helper.__parsingFriendzoneNov__(resp)
+                print(f"cursor:{cursor_now}")
+
+            # 文章有分享的資料才做處理
+            if len(edge_list) != 0:
+                print("A")
+                contents = contents + edge_list
+            if not helper.hasNextPageFriendzone(resp):
+                print("rgrgrgrrgg")
+                raise UnboundLocalError("Reached the last page")
+            else:
+                cursor = cursor_now
+
+        except UnboundLocalError:
+            print(f"{facebookUser.username}: Reached the last page")
+            break
+
+        except Exception as e:
+            if (not isinstance(e, ProtocolError)) and (not isinstance(e, ChunkedEncodingError)) and (not isinstance(e, ConnectionError)) and (not isinstance(e, SSLError)) and (not isinstance(e, UnboundLocalError)) and (not isinstance(e, TimeoutError)) and (not isinstance(e, KeyError)) and (not isinstance(e, ConnectTimeoutError)) and (not isinstance(e, MaxRetryError)) and (not isinstance(e, ConnectionResetError)) and (not isinstance(e, ProxyError)) and (not isinstance(e, ConnectTimeout)):
+                writer.writeLogToFile(traceBack=traceback.format_exc())
+                writer.writeLogToFile(traceBack=f"username:{facebookUser.username}, docid:{facebookUser.friendzone_docid}, cursor:{cursor}")
+
+            # 沒有使用多執行緒的走這邊
+            if queueSignal is None:
+                proxy_count, try_count, proxy_ip_list = proxy.updateProxyAndStatus(proxy_count, try_count, proxy_ip_list, processNum)
+            else:
+                proxy_count, try_count, proxy_ip_list = proxy.updateMultiThreadProxyAndStatus(
+                    proxy_count, try_count, proxy_ip_list, processNum, facebookUser.username, len(contents), queueSignal)
+            random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
+            if try_count >= configSetting.proxy_try_count:
+                print(
+                    f"行程{processNum}->分享者編號{facebookUser.username} failed to catch posts after {try_count} times trying...")
+                break
+            else:
+                continue
+        finally:
+            time.sleep(random.randint(1, 5))
+
+    session.close()
+    if queue is not None:
+        queue.put(contents)
+        fill = int(os.environ.get("friend_id_list_len"))
+        if queue.qsize() % configSetting.queue_show_interval == 0:
+            print(f"行程{processNum}-> {facebookUser.username}:目前完成的任務數量為 {queue.qsize()}")
+        if fill - queue.qsize() < 50:
+            print(
+                f"行程{processNum}-> {facebookUser.username}:還剩下 {fill - queue.qsize()} 個任務未完成")
+
+    for content in contents:
+        print(content)
+        friend_instance = facebookFriend(username=content["username"], profile_url=content["profile_url"],
+                                         user_id=content["user_id"], photo_url=content["photo_url"])
+        facebookUser.friend_data_list.append(friend_instance)
+    return

@@ -31,7 +31,7 @@ def getCsrfToken():
     target_url = input_data['targetURL'][0]
     username_list = configSetting.json_array_data['user']['account']
     password_list = configSetting.json_array_data['user']['password']
-    account_number = 0
+    account_number = 2
 
     while True:
         try:

@@ -132,8 +132,7 @@ def __getFriendzoneNovSection__(pageURL, customDriver: webDriver.friendzoneDrive
             continue
         else:
             # resp_href = requests.get(js.get('src'))
-            resp_href = customDriver.catchSpecialJsSource(
-                pageURL=js.get('src'))
+            resp_href = customDriver.catchSpecialJsSource(pageURL=js.get('src'))
             for line in resp_href.split('\n', -1):
                 if 'ProfileCometAppCollectionListRendererPaginationQuery_' in line:
                     docid = re.findall('e.exports="([0-9]{1,})"', line)[0]
