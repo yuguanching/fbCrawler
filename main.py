@@ -65,7 +65,7 @@ def runFansPage(jsonArrayDataSub, fbDTSG, feedback_docid, processNum) -> str:
         configSetting.db_adapter.update_user_image(user_id=page_id, image_field="homepage_image", image=image)
         print(f"已插入粉專資料: {db_input_data}")
 
-        if configSetting.operate_by_loading_db:
+        if configSetting.post_operate_by_loading_db:
             id_data_from_db = configSetting.db_adapter.get_article_id_info(user_id=page_id)
             # theDate = configSetting.json_array_data["searchStartDate"]
             # id_data_from_db = configSetting.db_adapter.get_article_id_info_by_date(user_id=page_id, deadline=theDate)
@@ -117,7 +117,7 @@ def runFansPage(jsonArrayDataSub, fbDTSG, feedback_docid, processNum) -> str:
         #     time.sleep(2)  # 給一個寫檔的時間
         # else:
         #     print(f"行程{processNum}-> 沒有抓到文章留言區資訊的docid代號,故結束抓取")
-        if configSetting.operate_by_loading_db:
+        if configSetting.share_operate_by_loading_db is False:
             # 外部先取得feedback的docid,避免多線程重複抓取
             # feedback_docid = "9069466813142103"
             req_name = "CometResharesFeedPaginationQuery"

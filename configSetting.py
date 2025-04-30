@@ -11,7 +11,8 @@ from Adaptor.FacebookSourceAdaptor import FacebookSourceAdaptor
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 json_array_data = reader.readInputJson()
-operate_by_loading_db = False
+post_operate_by_loading_db = True
+share_operate_by_loading_db = False
 output_root = './output/粉專/'
 feedback_docID_fetch_refer_url = "https://www.facebook.com/pastalmighty/posts/pfbid02YwNeWaiaMv2Wiay4DKthsw9JCvfHt2vDouVmyzfrxCYp5T4KnCHak9noU5Rj5jBEl?locale=zh_TW"
 sp_time = datetime.strptime("2010-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")

@@ -233,7 +233,7 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
 
     # ==================================分享者雜資料統計區============================
     print(f"開始產生 {subDir} 的分享者統計資料")
-    if configSetting.operate_by_loading_db is False:
+    if configSetting.share_operate_by_loading_db is False:
         for article_share_list in rawDataList:
             if len(article_share_list) == 0:
                 continue
