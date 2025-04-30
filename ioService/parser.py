@@ -215,6 +215,7 @@ def extendCommentData(commentDataList, subDir):
 
 def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.screenshotDriver) -> None:
 
+    special_chars = r"[!|#|~|,|。|，|？|！|：|;|；|』|『|」|「|“|、|”|】|【|／|\[|\]|?|*|※|］|［]"
     db_data_list = []
     excel_file = f'{configSetting.output_root}' + subDir + '/dataParse.xlsx'
     collect_data_file = f'{configSetting.output_root}' + subDir + '/collectData.xlsx'
@@ -244,12 +245,14 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
 
                     # 分享者網址和被分享者網址 , 若沒有被分享的目的地,則被分享者網址放空,分享者網址填個人頁面
                     sharerTempURL = share_data["sharer_url"]
+                    sharer_temp_name = re.sub(special_chars, "", share_data["sharer_name"])
                     been_sharer_temp_name = ""
                     been_sharer_temp_url = ""
                     if share_data["been_sharer_id"] != "":
                         sharerTempURL = f"https://www.facebook.com/groups/{str(share_data['been_sharer_id'])}/user/{str(share_data['sharer_id'])}/"
                         been_sharer_temp_url = f"https://www.facebook.com/groups/{str(share_data['been_sharer_id'])}/"
                         been_sharer_temp_name = share_data["been_sharer_raw_name"]
+                        been_sharer_temp_name = re.sub(special_chars, "", been_sharer_temp_name)
 
                     db_data = (
                         share_data["share_event_id"],
@@ -258,7 +261,7 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
                         share_data["feedback_id"],
                         format_date,
                         share_data["sharer_id"],
-                        share_data["sharer_name"],
+                        sharer_temp_name,
                         sharerTempURL,
                         share_data["sharer_type"],
                         share_data["contents"],
@@ -272,6 +275,8 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
         print(f"已插入粉專分享資料")
         time.sleep(5)
 
+    # theDate = configSetting.json_array_data["searchStartDate"]
+    # share_data_from_db = configSetting.db_adapter.get_article_share_data_by_certain_article(user_id=pageID, deadline=theDate)
     share_data_from_db = configSetting.db_adapter.get_article_share_data(user_id=pageID)
     print(f"已取得粉專分享資料，共{len(share_data_from_db)}筆")
     time.sleep(5)
@@ -333,6 +338,7 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
     sharer_end_date = []
 
     # 透過雜資料以分享者名稱進行分組, 排序後獲得使用者在此粉專分享足跡的最早與最晚時間
+    print("開始進行分享者聚合")
     share_data_group_dict = dict(list(df.groupby("分享者名稱")))
     for name, _ in share_data_group_dict.items():
         share_data_group_dict[name]['發布時間'] = pd.to_datetime(share_data_group_dict[name]['發布時間'], format="%Y-%m-%d %H:%M:%S")
@@ -346,18 +352,10 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
         sharer_start_date.append(share_data_group_dict[x]['發布時間'].values[0])
         sharer_end_date.append(share_data_group_dict[x]['發布時間'].values[len(share_data_group_dict[x]['發布時間']) - 1])
         sharer_url.append(temp)
+        sharer_profile_url.append(generate_personal_profile_link(temp))
         sharer_id.append(temp_id)
         sharer_type.append(temp_type)
-    # 透過userID 整理出分享者個人的頁面網址
-    for url in sharer_url:
-        if url.find("profile") != -1:
-            sharer_profile_url.append(url)
-        else:
-            start_idx = url.find("/", url.find("user"))
-            end_idx = url.find("?")
-            concat = url[start_idx + 1:end_idx]
-            new_url = "https://www.facebook.com/profile.php?id=" + concat
-            sharer_profile_url.append(new_url)
+    print("完成分享者聚合")
 
     sharer_df = pd.DataFrame.from_dict(sharer_counter, orient='index').reset_index()
     sharer_df['分享者id'] = sharer_id
@@ -384,28 +382,28 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
     del sharer_df['index']
     sharer_df.insert(0, "粉專id", pageID)
     sharer_df.insert(0, "粉專名稱", subDir)
-
+    print("完成分享者聚合資料的資料框建置")
     # ------------------------------寫檔到sheet: sharer -------------------------------------
     writer.pdToExcel(des=excel_file, df=sharer_df, sheetName="sharer", mode='a')
     # ----------------------彙整好分享者統計資料後,抓取分享者的個人頁面截圖-------------------------
-    count = 0
-    for s_url in sharer_df["分享者個人頁面"].tolist():
-        if s_url == "":
-            continue
-        else:
-            if count >= configSetting.screenshot_count:
-                time.sleep(random.randint(1, 2))
-                break
-            else:
-                print("開始擷取分享者個人頁面的圖片,id : " + str(count))
-                try:
-                    if screenshotDriver._getSource(s_url, count, 0, subDir, None):
-                        count += 1
-                    else:
-                        continue
-                except Exception as e:
-                    print(f"分享者個人頁面圖片截取失敗, 錯誤訊息:{e}")
-                    count += 1
+    # count = 0
+    # for s_url in sharer_df["分享者個人頁面"].tolist():
+    #     if s_url == "":
+    #         continue
+    #     else:
+    #         if count >= configSetting.screenshot_count:
+    #             time.sleep(random.randint(1, 2))
+    #             break
+    #         else:
+    #             print("開始擷取分享者個人頁面的圖片,id : " + str(count))
+    #             try:
+    #                 if screenshotDriver._getSource(s_url, count, 0, subDir, None):
+    #                     count += 1
+    #                 else:
+    #                     continue
+    #             except Exception as e:
+    #                 print(f"分享者個人頁面圖片截取失敗, 錯誤訊息:{e}")
+    #                 count += 1
 
     # -----------------------產生被分享者統整資料,並寫到sheet: been_sharer --------------------------------------
 
@@ -436,6 +434,7 @@ def buildDataParse(rawDataList, subDir, pageID, screenshotDriver: webDriver.scre
     del been_sharer_df['index']
     been_sharer_df.insert(0, "粉專id", pageID)
     been_sharer_df.insert(0, "粉專名稱", subDir)
+    print("完成被分享者聚合資料的資料框建置")
 
     # ------------------------------寫檔到sheet: been_sharer-------------------------------------
     writer.pdToExcel(des=excel_file, df=been_sharer_df, sheetName="been_sharer", mode='a')
@@ -997,7 +996,19 @@ def buildAberrantAccountDataSet(sharerDF: pd.DataFrame, subDir: str):
             })
             df_template = pd.concat([df_template, row], ignore_index=True)
         template_file = ".\\template\\新版臉書異常帳號表格.xlsx"
-        dst_file = f".\\output\粉專\\{subDir}\\臉書異常帳號彙整_{str(file_idx)}.xlsx"
+        dst_file = f".\\output\\粉專\\{subDir}\\臉書異常帳號彙整_{str(file_idx)}.xlsx"
         writer.copyFileFromSrcToDst(src=template_file, dst=dst_file)
         writer.updateDataToExcelCertainCell(data=df_template, filename=dst_file, sheetname="工作表1", cell_index="A4")
         # writer.updateFormulaToExcel(filename=dst_file, sheetname="工作表1", start=4, end=53)
+
+
+def generate_personal_profile_link(url: str) -> str:
+    # 透過userID 整理出分享者個人的頁面網址
+    if url.find("profile") != -1:
+        return url
+    else:
+        start_idx = url.find("/", url.find("user"))
+        end_idx = url.find("?")
+        concat = url[start_idx + 1:end_idx]
+        new_url = "https://www.facebook.com/profile.php?id=" + concat
+        return new_url

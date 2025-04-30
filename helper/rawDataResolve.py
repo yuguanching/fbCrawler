@@ -8,7 +8,6 @@ from ioService import writer
 
 # 粉專與社團文章抓取共用
 def __resolverEdgesPage__(edge) -> dict:
-
     ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
     comet_sections_ = edge['node']['comet_sections']
 
@@ -122,6 +121,8 @@ def __resolverEdgesPage__(edge) -> dict:
                     image_url = attach_obj['media']['photo_image']['uri']
                 elif "image" in attach_obj['media']:
                     image_url = attach_obj['media']['image']['uri']
+                elif "placeholder_image" in attach_obj['media']:
+                    image_url = attach_obj['media']['placeholder_image']['uri']
                 else:
                     image_url = ""
             # 多張圖片
@@ -171,7 +172,11 @@ def __resolverEdgesFeedback__(edge, posts_count, feedback_id, article_id) -> dic
     try:
         tracking_data_str = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['tracking']
     except:
-        tracking_data_str = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['tracking']
+        try:
+            tracking_data_str = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['tracking']
+        except:
+            tracking_data_str = comet_sections_['feedback']['story']['story_ufi_container']['story']['tracking']
+
     tracking_data = json.loads(tracking_data_str)
 
     # 單筆分享行為的識別id
@@ -237,7 +242,11 @@ def __resolverEdgesFeedback__(edge, posts_count, feedback_id, article_id) -> dic
     try:
         permalink = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['url']
     except:
-        permalink = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['url']
+        try:
+            permalink = comet_sections_['feedback']['story']['comet_feed_ufi_container']['story']['story_ufi_container']['story']['url']
+        except:
+            permalink = comet_sections_['feedback']['story']['story_ufi_container']['story']['url']
+
     if permalink is None:
         permalink = ""
 

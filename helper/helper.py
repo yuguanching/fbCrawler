@@ -221,7 +221,6 @@ def __parsingFeedback__(resp: requests.Response, posts_count, feedback_id, artic
             temp_cursor = edge["cursor"]
             edge_list.append(edge)
         except Exception as e:
-            writer.writeLogToFile(resp.text)
             writer.writeLogToFile(traceback.format_exc())
             print(traceback.format_exc())
             continue

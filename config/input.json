@@ -1,9 +1,9 @@
 {
     "targetURL": [
-        "https://www.facebook.com/ROC.politician.meme"
+        "https://www.facebook.com/xianhong.wang.1030"
     ],
     "targetName": [
-        "政客迷因 Politician meme"
+        "汪小鴻"
     ],
     "user": {
         "account": [
@@ -21,6 +21,6 @@
     },
     "personProfileDocidTestURL": "https://www.facebook.com/profile.php?id=100000379318468",
     "isTimeEndToCurrent": true,
-    "searchStartDate": "2000-01-01 00:00:00",
+    "searchStartDate": "2000-08-24 00:00:00",
     "searchEndDate": "2023-04-17 00:00:00"
 }

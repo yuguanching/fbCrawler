@@ -88,7 +88,7 @@ def writeJsonFile(filename, content) -> None:
 
 
 def copyFileFromSrcToDst(src: str, dst: str) -> None:
-    command = f'copy {src} {dst}'
+    command = f'copy "{src}" "{dst}"'
     os.system(command)
 
 
@@ -127,13 +127,12 @@ def genernate_abnormal_account_word(account_name: str, profile_url: str, subDir:
 
     page_name = subDir
     if Auxiliary.is_chinese(account_name):
-        account_name = RichText()
-        account_name.add(text=account_name, font="標楷體")
+        format_account_name = RichText()
+        format_account_name.add(text=account_name, font="標楷體")
     else:
-        account_name = RichText()
-        account_name.add(text=account_name, font="Arial")
-
-    context["account_name"] = account_name
+        format_account_name = RichText()
+        format_account_name.add(text=account_name, font="Arial")
+    context["account_name"] = format_account_name
     context["abnormal_feature"] = "詳如調查報告、假帳號彙整表"
     pic_url = RichText()
     pic_url.add("帳號個人頁面", url_id=tpl.build_url_id(profile_url))

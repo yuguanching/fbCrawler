@@ -50,8 +50,8 @@ def runUserInfo(jsonArrayDataSub, fbDTSG, aboutDocID, friendzoneDocID, processNu
         futures = []
         friendzone_data_list = []
 
-        post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name, docID=page_docid,
-                                                 proxyIpList=proxy_ip_list, processNum=processNum, targetName=target_name)
+        post_list = crawlRequests.crawlPagePosts(pageURL=target_url, pageID=page_id, reqName=page_req_name,
+                                                 docID=page_docid, processNum=processNum, targetName=target_name)
         feedback_id_list, story_id_list = parser.buildCollectData(post_list, target_name, screenshotDriver=screenshot_driver)
         print(f"{target_name} 文章的feedback_id數量: {len(feedback_id_list)}")
 

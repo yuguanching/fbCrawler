@@ -145,7 +145,9 @@ class postsDriver(customWebDriver):
         time.sleep(time_pause)
         self.driver.refresh()
         time.sleep(time_pause)
-
+        # 關閉未登入狀態下提示的彈窗
+        popup_close_btn_element = self.driver.find_element(By.XPATH, "//div[@aria-label='關閉' and @role='button']")
+        popup_close_btn_element.click()
         resp = self.driver.page_source
 
         time.sleep(time_pause)
@@ -163,16 +165,19 @@ class feedbackDriver(customWebDriver):
         # 隱式等待
         self.driver.implicitly_wait(configSetting.implicitly_wait)
         temp = []
+        # 關閉未登入狀態下提示的彈窗
+        # popup_close_btn_element = self.driver.find_element(By.XPATH, "//div[@aria-label='關閉' and @role='button']")
+        # popup_close_btn_element.click()
         try:
-            for x in range(1, 5):
-                try:
-                    self.driver.execute_script(
-                        "window.scrollTo(0,document.body.scrollHeight)")
-                    temp = WebDriverWait(self.driver, 5).until(
-                        customWait.scrollWait('//div[@class="x1yztbdb x1n2onr6 xh8yej3 x1ja2u2z"]',  # 每一篇文章的開頭層級
-                                              temp, x))
-                except:
-                    break
+            # for x in range(1, 2):
+            #     try:
+            #         self.driver.execute_script(
+            #             "window.scrollTo(0,document.body.scrollHeight)")
+            #         temp = WebDriverWait(self.driver, 5).until(
+            #             customWait.scrollWait('//div[@class="x1yztbdb x1n2onr6 xh8yej3 x1ja2u2z"]',  # 每一篇文章的開頭層級
+            #                                   temp, x))
+            #     except:
+            #         break
             article_locator = (By.XPATH,
                                "//div[@class='x1yztbdb x1n2onr6 xh8yej3 x1ja2u2z']")
             article_start_point = WebDriverWait(self.driver, 10).until(
@@ -180,11 +185,11 @@ class feedbackDriver(customWebDriver):
 
             for asp in article_start_point:
 
-                self.driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
+                # self.driver.execute_script(
+                #     "arguments[0].scrollIntoView({block: 'center', inline: 'center'});", asp)
 
                 share_point_locator = (
-                    By.XPATH, ".//div[@class='x1n2onr6']//descendant::span[@class='x4k7w5x x1h91t0o x1h9r5lt x1jfb8zj xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j']")
+                    By.XPATH, ".//div[@class='x9f619 x1ja2u2z x78zum5 x2lah0s x1n2onr6 x1qughib x1qjc9v5 xozqiw3 x1q0g3np xykv574 xbmpl8g x4cne27 xifccgj x123j3cw xs9asl8']//descendant::span[@class='html-span xdj266r x11i5rnm xat24cr x1mh8g0r xexx8yu x4uap5 x18d9i69 xkhd6sd x1hl2dhg x16tdsg8 x1vvkbs x4k7w5x x1h91t0o x1h9r5lt x1jfb8zj xv2umb2 x1beo9mf xaigb6o x12ejxvf x3igimt xarpa2k xedcshv x1lytzrv x1t2pt76 x7ja8zs x1qrby5j']")
                 try:
                     share_list_point = WebDriverWait(asp, 5).until(
                         EC.presence_of_all_elements_located(share_point_locator))
@@ -377,8 +382,9 @@ class screenshotDriver(customWebDriver):
         except:
             print("no jump")
             pass
+        # 首頁定位點
         locator = (By.XPATH, "//div[@class='x78zum5 xdt5ytf x1iyjqo2 x1t2pt76 xeuugli']")
-        homepage_view = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located(locator))
+        homepage_view = WebDriverWait(self.driver, 20).until(EC.presence_of_element_located(locator))
         homepage_view.screenshot(homepage_image_path)
         Auxiliary.image_compress(homepage_image_path)
         profile_photo_url = self.driver.find_element(
@@ -397,11 +403,17 @@ class screenshotDriver(customWebDriver):
             print("no jump")
             pass
 
-        found_date = self.driver.find_elements(
-            By.XPATH, "//div[@class='x9f619 x1n2onr6 x1ja2u2z x78zum5 x1nhvcw1 x1qjc9v5 xozqiw3 x1q0g3np xexx8yu xykv574 xbmpl8g x4cne27 xifccgj xs83m0k']")[1].find_element(By.XPATH, ".//div[@class='xzsf02u x6prxxf xvq8zen x126k92a x12nagc']").text
+        try:
+            # 一般粉專
+            found_date = self.driver.find_elements(
+                By.XPATH, "//div[@class='x9f619 x1ja2u2z x78zum5 x1n2onr6 x1nhvcw1 x1qjc9v5 xozqiw3 x1q0g3np xexx8yu xykv574 xbmpl8g x4cne27 xifccgj xs83m0k']")[1].find_element(By.XPATH, ".//div[@class='xzsf02u x6prxxf xvq8zen x126k92a x12nagc']").text
+        except:
+            # 個人profile
+            found_date = self.driver.find_elements(
+                By.XPATH, "//div[@class='x9f619 x1ja2u2z x78zum5 x1n2onr6 x1nhvcw1 x1qjc9v5 xozqiw3 x1q0g3np xexx8yu xykv574 xbmpl8g x4cne27 xifccgj xs83m0k']")[0].find_element(By.XPATH, ".//div[@class='xzsf02u x6prxxf xvq8zen x126k92a x12nagc']").text
 
         check_all = self.driver.find_element(
-            By.XPATH, "//div[@class='x1n2onr6 x1ja2u2z x78zum5 x2lah0s xl56j7k x6s0dn4 xozqiw3 x1q0g3np xi112ho x17zwfj4 x585lrc x1403ito x972fbf xcfux6l x1qhh985 xm0m39n x9f619 xn6708d x1ye3gou x1qhmfi1 x1r1pt67']")
+            By.XPATH, "//div[@class='x1ja2u2z x78zum5 x2lah0s x1n2onr6 xl56j7k x6s0dn4 xozqiw3 x1q0g3np xi112ho x17zwfj4 x585lrc x1403ito x972fbf xcfux6l x1qhh985 xm0m39n x9f619 xn6708d x1ye3gou x1qhmfi1 x1r1pt67']")
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", check_all)
         time.sleep(2)
         check_all.click()

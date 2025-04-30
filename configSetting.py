@@ -13,7 +13,7 @@ from Adaptor.FacebookSourceAdaptor import FacebookSourceAdaptor
 json_array_data = reader.readInputJson()
 operate_by_loading_db = False
 output_root = './output/粉專/'
-
+feedback_docID_fetch_refer_url = "https://www.facebook.com/pastalmighty/posts/pfbid02YwNeWaiaMv2Wiay4DKthsw9JCvfHt2vDouVmyzfrxCYp5T4KnCHak9noU5Rj5jBEl?locale=zh_TW"
 sp_time = datetime.strptime("2010-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 # ---------- input settings ----------
 
@@ -75,18 +75,17 @@ allDriverType = Union[webDriver.postsDriver, webDriver.feedbackDriver,
 valid_proxy_ip_len = 7
 
 # 抓回來使用的prxoy_ip_list 全部失效後的重試次數
-proxy_try_count = 30
+proxy_try_count = 15
 # ---------- proxy settings ----------
 
 
 # ---------- db settings ----------
 
-RPA_HOST = os.environ.get("RPA_HOST", "192.168.50.242")
+RPA_HOST = os.environ.get("RPA_HOST", "192.168.50.129")
 RPA_USER = os.environ.get("RPA_USER", "jerry_yu")
 RPA_PWD = os.environ.get("RPA_PWD", "Ni998453!!!")
 RPA_DB = os.environ.get("RPA_DB", "facebookData")
 RPA_PORT = int(os.environ.get("RPA_PORT", 3306))
-
+RPA_TIMEOUT = int(os.environ.get("RPA_TIMEOUT", 300))
 db_adapter = FacebookSourceAdaptor()
-
 # ---------- db settings ----------

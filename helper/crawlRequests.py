@@ -5,6 +5,7 @@ import time
 import random
 import os
 import traceback
+import urllib3
 import configSetting
 
 from queue import Queue
@@ -21,6 +22,10 @@ from http.client import HTTPConnection
 from module.facebook_module import facebookUser, facebookFriend
 
 
+# 關閉使用proxy不帶verify時報出的警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
 def __getHeaders__(pageurl) -> dict:
     '''
     Send a request to get cookieid as headers.
@@ -28,9 +33,9 @@ def __getHeaders__(pageurl) -> dict:
     fake_user_agent = UserAgent()
 
     # headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[cookieid]) for cookieid in resp.cookies.get_dict()])
-    headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-               'accept-language': 'en'}
-    headers['ec-ch-ua-platform'] = 'Windows'
+    headers = {'accept': '*/*',
+               'accept-language': 'zh-TW,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,ja;q=0.5'}
+    headers['content-type'] = 'application/x-www-form-urlencoded'
     headers['User-Agent'] = str(fake_user_agent.chrome)
     headers['sec-fetch-site'] = "same-origin"
     headers['origin'] = "https://www.facebook.com"
@@ -38,18 +43,22 @@ def __getHeaders__(pageurl) -> dict:
     # headers['cookie'] = ''
     pageurl = re.sub('www', 'm', pageurl)
     resp = requests.get(pageurl)
-    headers['cookie'] = '; '.join(['{}={}'.format(cookieid, resp.cookies.get_dict()[
-        cookieid]) for cookieid in resp.cookies.get_dict()])
+    headers["cookie"] = "; ".join(
+        [
+            "{}={}".format(cookieid, resp.cookies.get_dict()[cookieid])
+            for cookieid in resp.cookies.get_dict()
+        ]
+    )
     return headers
 
 
-def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, targetName) -> list:
+def crawlPagePosts(pageURL, pageID, docID, reqName, processNum, targetName) -> list:
 
     try_count = 0  # 全任務使用各種IP重試的次數統計
     proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
     ult_noproxy_count = 0  # 每當出現一次exception就會累積一次,到達一定次數後就會允許使用一次本機公網ip發起呼叫,提高成功率
     record_time_cooldown = datetime.now()
-    proxy_ip_list = proxyIpList
+    proxy_ip_list = json.loads(os.environ["proxy_list"])
     random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
     contents = []
     cursor = ''
@@ -58,27 +67,25 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
     data = dict()
     page_info_obj = dict()
     headers = __getHeaders__(pageURL)
-
     session = requests.session()
 
     # 設定失敗重試策略
     retry_strategy = Retry(
+        connect=3,
         total=configSetting.retry,
         status_forcelist=[429, 500, 502, 503, 504],
         method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=100, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
     is_up_to_time = True
     while True:
         print(f"{'=' * 100}\n")
-        print(
-            f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
-        writer.writeLogToFile(
-            f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
+        print(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
+        writer.writeLogToFile(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
         print(f"{'=' * 100}\n")
         data = {
             'variables': str(
@@ -94,30 +101,38 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
                     "__relay_internal__pv__GroupsCometDelayCheckBlockedUsersrelayprovider": "false",
                     "__relay_internal__pv__IsWorkUserrelayprovider": "false",
                     "__relay_internal__pv__IsMergQAPollsrelayprovider": "false",
-                    "__relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider": "false",
-                    "__relay_internal__pv__StoriesRingrelayprovider": "false"
+                    "__relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider": "true",
+                    "__relay_internal__pv__StoriesRingrelayprovider": "false",
+                    "__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider": "false",
+                    "__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider": "true",
+                    "__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider": "false",
+                    "__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider": "false",
+                    "__relay_internal__pv__CometUFIShareActionMigrationrelayprovider": "true",
+                    "__relay_internal__pv__IncludeCommentWithAttachmentrelayprovider": "true",
+                    "__relay_internal__pv__EventCometCardImage_prefetchEventImagerelayprovider": "true"
                 }
             ),
             'doc_id': docID,
-            "__a": "1",
-            "__comet_req": "15",
+            "__a": 1,
+            "__comet_req": 15,
             "fb_api_req_friendly_name": reqName,
             "server_timestamps": "false"
         }
+
         try:
             # 區別在於有沒有使用proxy
             if current_time == "":
                 current_time_date = datetime.now()
             else:
-                current_time_date = datetime.strptime(
-                    current_time, "%Y-%m-%d %H:%M:%S")
+                current_time_date = datetime.strptime(current_time, "%Y-%m-%d %H:%M:%S")
+            # if len(contents) > 800:
             if ((ult_noproxy_count >= configSetting.exception_max_try) and Auxiliary.checkTimeCooldown(record_time_cooldown)) or (current_time_date < configSetting.sp_time):
                 print("觸發大招")
                 resp = session.post(url='https://www.facebook.com/api/graphql/',
                                     data=data,
                                     headers=headers,
                                     timeout=configSetting.timeout,
-                                    verify="./config/certs.pem"
+                                    verify=False
                                     )
                 # 使用完後,設定下新的時間,並重置發生錯誤的累積值
                 ult_noproxy_count = 0
@@ -127,17 +142,15 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, proxyIpList, processNum, tar
                                     data=data,
                                     headers=headers,
                                     timeout=configSetting.timeout,
-                                    proxies={'http': random_proxy_ip,
-                                             "https": random_proxy_ip},
-                                    verify="./config/certs.pem"
+                                    proxies={'http': random_proxy_ip, "https": random_proxy_ip},
+                                    verify=False
                                     )
 
             if reqName == 'ProfileCometTimelineFeedRefetchQuery':
                 edge_list, cursor_now, is_up_to_time, arrive_first_catch_time, time_now, page_info_obj = helper.__parsingProfileComet__(
                     resp)
             elif reqName == 'CometModernPageFeedPaginationQuery':
-                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time, time_now = helper.__parsingCometModern__(
-                    resp)
+                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time, time_now = helper.__parsingCometModern__(resp)
 
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
