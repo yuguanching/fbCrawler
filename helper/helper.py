@@ -163,8 +163,7 @@ def __parsingCometModern__(resp: requests.Response) -> tuple[list, str, bool, bo
 
 def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, bool, str]:
     edge_list = []
-    writer.writeTempFile(
-        filename="sourceCode_group_posts_edge", content=resp.text)
+    writer.writeTempFile(filename="sourceCode_group_posts_edge", content=resp.text)
     resps = resp.text.split('\n', -1)
     temp_cursor = ""
     temp_time = ""
@@ -186,8 +185,7 @@ def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, boo
                         edge = rawDataResolve.__resolverEdgesPage__(raw_edge)
                         temp_cursor = edge["cursor"]
                         if edge["creation_time"] != 0:
-                            is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(
-                                edge["creation_time"])
+                            is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"])
                             if is_up_to_time:
                                 edge_list.append(edge)
                         else:
@@ -209,13 +207,19 @@ def __parsingFeedback__(resp: requests.Response, posts_count, feedback_id, artic
     edge_list = []
     resps = json.loads(resp.text.split('\r\n', -1)[0])
     temp_cursor = ""
-
+    
+    # 2025-05-02 據觀察，有可能出現data->node->null的情況，此情形高機率肇因於該篇文章被移除，導致無對應的分享細節
+    root = resps['data']
+    if root['node'] is None:
+        print(f"文章編號{posts_count}的分享細節不存在，可能已被刪除")
+        return [], ""
+    
     # 該篇文章還沒有任何分享者,直接視作抓完資料跳出
-    check = resps['data']['node']['reshares']['edges']
+    check = root['node']['reshares']['edges']
     if len(check) == 0:
         return [], ""
 
-    for raw_edge in resps['data']['node']['reshares']['edges']:
+    for raw_edge in root['node']['reshares']['edges']:
         try:
             edge = rawDataResolve.__resolverEdgesFeedback__(raw_edge, posts_count, feedback_id, article_id)
             temp_cursor = edge["cursor"]
@@ -225,7 +229,7 @@ def __parsingFeedback__(resp: requests.Response, posts_count, feedback_id, artic
             print(traceback.format_exc())
             continue
     try:
-        cursor = resps['data']['node']['reshares']['page_info']['end_cursor']
+        cursor = root['node']['reshares']['page_info']['end_cursor']
     except:
         cursor = temp_cursor
 
@@ -284,8 +288,14 @@ def hasNextPageGroupPost(resp: requests.Response) -> bool:
 
 def hasNextPageFeedback(resp: requests.Response) -> bool:
     resp = json.loads(resp.text.split('\r\n', -1)[0])
-    if resp['data']['node']['reshares']:
-        has_next_page = resp['data']['node']['reshares']['page_info']['has_next_page']
+    
+    # 2025-05-02 據觀察，有可能出現data->node->null的情況，此情形高機率肇因於該篇文章被移除，導致無對應的分享細節
+    root = resp['data']
+    if root['node'] is None:
+        return False
+    
+    if root['node']['reshares']:
+        has_next_page = root['node']['reshares']['page_info']['has_next_page']
 
     return has_next_page
 

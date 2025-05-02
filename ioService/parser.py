@@ -104,7 +104,7 @@ def buildCollectData(rawDataList, subDir, page_id, screenshotDriver: webDriver.s
                    raw_data["video_url"],
                    raw_data["url"])
         db_data_list.append(db_data)
-
+        
     configSetting.db_adapter.insert_user_article(db_data_list)
     print(f"已插入粉專文章資料")
     time.sleep(5)

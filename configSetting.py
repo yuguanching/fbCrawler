@@ -11,7 +11,7 @@ from Adaptor.FacebookSourceAdaptor import FacebookSourceAdaptor
 # ---------- input settings ----------
 # 輸入資料與客製相關設定檔
 json_array_data = reader.readInputJson()
-post_operate_by_loading_db = True
+post_operate_by_loading_db = False
 share_operate_by_loading_db = False
 output_root = './output/粉專/'
 feedback_docID_fetch_refer_url = "https://www.facebook.com/pastalmighty/posts/pfbid02YwNeWaiaMv2Wiay4DKthsw9JCvfHt2vDouVmyzfrxCYp5T4KnCHak9noU5Rj5jBEl?locale=zh_TW"
@@ -76,7 +76,7 @@ allDriverType = Union[webDriver.postsDriver, webDriver.feedbackDriver,
 valid_proxy_ip_len = 7
 
 # 抓回來使用的prxoy_ip_list 全部失效後的重試次數
-proxy_try_count = 15
+proxy_try_count = 10
 # ---------- proxy settings ----------
 
 

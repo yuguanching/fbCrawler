@@ -1,9 +1,9 @@
 {
     "targetURL": [
-        "https://www.facebook.com/momokmtisgood"
+        "https://www.facebook.com/groups/148872321874296/"
     ],
     "targetName": [
-        "打馬悍將粉絲團"
+        "大台南大爆料"
     ],
     "user": {
         "account": [
@@ -21,6 +21,6 @@
     },
     "personProfileDocidTestURL": "https://www.facebook.com/profile.php?id=100000379318468",
     "isTimeEndToCurrent": true,
-    "searchStartDate": "2000-08-24 00:00:00",
+    "searchStartDate": "2025-01-01 00:00:00",
     "searchEndDate": "2023-04-17 00:00:00"
 }

@@ -70,6 +70,10 @@ class customWebDriver(ABC):
             self.options.add_argument('blink-settings=imagesEnabled=false')
         if needHeadless:
             self.options.add_argument("--headless=new")
+            
+        # 2025-05-01 遇到的問題:機器本身沒有GPU,所以無法使用GPU加速,進而噴錯
+        self.options.add_argument('--enable-unsafe-webgpu') # 避免 fallback 出錯（可選）
+        self.options.add_argument('--enable-unsafe-swiftshader') # 避免 fallback 出錯（可選）
 
     def driverInitialize(self, driver: webdriver.Chrome = None):
         """

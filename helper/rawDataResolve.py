@@ -16,8 +16,17 @@ def __resolverEdgesPage__(edge) -> dict:
         name = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['name']
 
         story_id = edge['node']['id']
-        # creation_time
-        creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
+        try:
+            # creation_time
+            creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['creation_time']
+            # url
+            url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['url']
+        except:
+            # creation_time
+            creation_time = comet_sections_['context_layout']['story']['comet_sections']['metadata'][1]['story']['creation_time']
+            # url
+            url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][1]['story']['url']
+        
         # message
         try:
             message = comet_sections_['content']['story']['message']['text']
@@ -79,8 +88,6 @@ def __resolverEdgesPage__(edge) -> dict:
 
             # feedback_id
             feedback_id = comet_sections_["feedback"]["story"]["feedback_context"]["feedback_target_with_context"]["id"]
-        # url
-        url = comet_sections_['context_layout']['story']['comet_sections']['metadata'][0]['story']['url']
 
         # poster_name
         poster_name = comet_sections_['content']['story']['actors'][0]['name']

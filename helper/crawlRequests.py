@@ -198,51 +198,123 @@ def crawlPagePosts(pageURL, pageID, docID, reqName, processNum, targetName) -> l
     return contents
 
 
-def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, processNum, targetName) -> list:
+def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, processNum, targetName) -> list:
 
     try_count = 0  # 全任務使用各種IP重試的次數統計
     proxy_count = 0  # 單一輪proxy_ip_list的遍歷索引, 每次proxy ip 更新後都會歸零
-    proxy_ip_list = proxyIpList
+    ult_noproxy_count = 0  # 每當出現一次exception就會累積一次,到達一定次數後就會允許使用一次本機公網ip發起呼叫,提高成功率
+    record_time_cooldown = datetime.now()
+    proxy_ip_list = json.loads(os.environ["proxy_list"])
     random_proxy_ip = "http://" + proxy_ip_list[proxy_count]
     contents = []
     cursor = ''
     current_time = ''
+    url = ''
+    data = dict()
+    page_info_obj = dict()
     headers = __getHeaders__(pageURL)
-
     session = requests.session()
 
     # 設定失敗重試策略
     retry_strategy = Retry(
+        connect=3,
         total=configSetting.retry,
         status_forcelist=[429, 500, 502, 503, 504],
         method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
         backoff_factor=0.5
     )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=100, max_retries=retry_strategy)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
     is_up_to_time = True
     while True:
-        print(
-            f"行程{processNum}-> {targetName}:時間戳記: {current_time}, 當前的標記 : {cursor}")
-        data = {'variables': str({"count": "3",
-                                  "cursor": cursor,
-                                  "id": groupPageID,
-                                  "scale": "1",
-                                  "stream_initial_count": "1",
-                                  "useDefaultActor": "false",
-                                  "renderLocation": "group",
-                                  "feedLocation": "GROUP",
-                                  "feedType": "DISCUSSION",
-                                  "privacySelectorRenderLocation": "COMET_STREAM",
-                                  "__relay_internal__pv__IsWorkUserrelayprovider": "false",
-                                  "__relay_internal__pv__StoriesRingrelayprovider": "false"
-                                  }),
-                'doc_id': groupDocID,
-                "__a": "1",
-                "__comet_req": "15",
-                "fb_api_req_friendly_name": reqName
+        print(f"{'=' * 100}\n")
+        print(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
+        writer.writeLogToFile(f"行程{processNum}-> {targetName}:時間戳記: {current_time},文章網址: {url}, 當前的標記 : {cursor}")
+        print(f"{'=' * 100}\n")
+        
+        # 參數sortingSetting表示貼文排序: TOP_POSTS(最相關)或CHRONOLOGICAL(最新貼文)
+        if cursor == '':
+            data = {'variables': str(
+                    {
+                        "count": "3",
+                        "id": groupPageID,
+                        "scale": "1",
+                        "stream_initial_count": "1",
+                        "useDefaultActor": "false",
+                        "renderLocation": "group",
+                        "feedLocation": "GROUP",
+                        "feedType": "DISCUSSION",
+                        "feedbackSource": "0",
+                        "focusCommentID": "null",
+                        "privacySelectorRenderLocation": "COMET_STREAM",
+                        "renderLocation": "group",
+                        "sortingSetting": "CHRONOLOGICAL",
+                        "stream_initial_count": "1",
+                        "useDefaultActor": "false",
+                        "__relay_internal__pv__IsWorkUserrelayprovider": "false",
+                        "__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider": "true",
+                        "__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider": "true",
+                        "__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider": "true",
+                        "__relay_internal__pv__CometFeedStoryDynamicResolutionPhotoAttachmentRenderer_experimentWidthrelayprovider": 500,
+                        "__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider": "false",
+                        "__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider": "false",
+                        "__relay_internal__pv__IsMergQAPollsrelayprovider": "false",
+                        "__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider": "true",
+                        "__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider": "false",
+                        "__relay_internal__pv__CometUFIShareActionMigrationrelayprovider": "true",
+                        "__relay_internal__pv__CometIsReplyPagerDisabledrelayprovider": "false",
+                        "__relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider": "true",
+                        "__relay_internal__pv__CometFeedPYMKHScrollInitialPaginationCountrelayprovider": 10,
+                        "__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider": "true",
+                    }),
+                    'doc_id': groupDocID,
+                    "__a": "1",
+                    "__comet_req": "15",
+                    "fb_api_req_friendly_name": reqName,
+                    "server_timestamps": "true",
+                }
+        else:
+            data = {'variables': str(
+                    {
+                        "count": "3",
+                        "cursor": cursor,
+                        "id": groupPageID,
+                        "scale": "1",
+                        "stream_initial_count": "1",
+                        "useDefaultActor": "false",
+                        "renderLocation": "group",
+                        "feedLocation": "GROUP",
+                        "feedType": "DISCUSSION",
+                        "feedbackSource": "0",
+                        "focusCommentID": "null",
+                        "privacySelectorRenderLocation": "COMET_STREAM",
+                        "renderLocation": "group",
+                        "sortingSetting": "CHRONOLOGICAL",
+                        "stream_initial_count": "1",
+                        "useDefaultActor": "false",
+                        "__relay_internal__pv__IsWorkUserrelayprovider": "false",
+                        "__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider": "true",
+                        "__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider": "true",
+                        "__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider": "true",
+                        "__relay_internal__pv__CometFeedStoryDynamicResolutionPhotoAttachmentRenderer_experimentWidthrelayprovider": 500,
+                        "__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider": "false",
+                        "__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider": "false",
+                        "__relay_internal__pv__IsMergQAPollsrelayprovider": "false",
+                        "__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider": "true",
+                        "__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider": "false",
+                        "__relay_internal__pv__CometUFIShareActionMigrationrelayprovider": "true",
+                        "__relay_internal__pv__CometIsReplyPagerDisabledrelayprovider": "false",
+                        "__relay_internal__pv__StoriesArmadilloReplyEnabledrelayprovider": "true",
+                        "__relay_internal__pv__CometFeedPYMKHScrollInitialPaginationCountrelayprovider": 10,
+                        "__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider": "true",
+                    }),
+                    'doc_id': groupDocID,
+                    "__a": "1",
+                    "__comet_req": "15",
+                    "fb_api_req_friendly_name": reqName,
+                    "server_timestamps": "true",
                 }
         try:
             resp = session.post(url='https://www.facebook.com/api/graphql/',
@@ -250,13 +322,11 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, proc
                                 headers=headers,
                                 timeout=configSetting.timeout,
                                 verify="./config/certs.pem",
-                                proxies={'http': random_proxy_ip,
-                                         "https": random_proxy_ip}
+                                proxies={"http": random_proxy_ip, "https": random_proxy_ip}
                                 )
 
             if reqName == 'GroupsCometFeedRegularStoriesPaginationQuery':
-                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time, time_now = helper.__parsingGroupPosts__(
-                    resp)
+                edge_list, cursor_now, is_up_to_time, arrive_first_catch_time, time_now = helper.__parsingGroupPosts__(resp)
 
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
@@ -290,7 +360,7 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, proxyIpList, proc
             else:
                 continue
         finally:
-            time.sleep(random.randint(1, 2))
+            time.sleep(random.randint(1, 3))
     session.close()
     return contents
 

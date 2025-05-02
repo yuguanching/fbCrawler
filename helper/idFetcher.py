@@ -272,8 +272,7 @@ def __getDocIDFeedback__(pageURL, customDriver: webDriver.feedbackDriver) -> tup
         if req_name == "CometResharesFeedPaginationQuery" and comment_req_name == "CometFocusedStoryViewUFIQuery":
             break
     print(f'feedback docid is: {docid}, req_name is: {req_name}')
-    print(
-        f'comment docid is: {comment_docid}, req_name is: {comment_req_name}')
+    print(f'comment docid is: {comment_docid}, req_name is: {comment_req_name}')
     return "", docid, req_name, comment_docid, comment_req_name, is_been_banned
 
 
