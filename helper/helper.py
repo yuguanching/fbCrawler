@@ -201,7 +201,7 @@ def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, boo
                             edge = rawDataResolve.__resolverEdgesPage__(raw_edge)
                             temp_cursor = edge["cursor"]
                             if edge["creation_time"] != 0:
-                                is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"], target_name)
+                                is_up_to_time, arrive_first_catch_time, temp_time = Auxiliary.dateCompare(edge["creation_time"])
                                 if is_up_to_time:
                                     edge_list.append(edge)
                             else:

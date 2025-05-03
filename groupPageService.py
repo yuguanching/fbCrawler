@@ -49,7 +49,7 @@ def runGroupPage(jsonArrayDataSub, fbDTSG, feedback_docid,  processNum) -> str:
         # if is_been_banned:
         #     writer.writeLogToFile(f"目標{target_name}已被臉書封鎖,留下紀錄待處理")
         #     continue
-        group_id = "148872321874296"
+        group_id = "805970672852213"
         group_page_docid = "9970847139662973"
         page_req_name = "GroupsCometFeedRegularStoriesPaginationQuery"
 
