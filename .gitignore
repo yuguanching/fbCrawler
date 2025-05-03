@@ -4,6 +4,7 @@ __pycache__
 /temp/*
 /config/proxyList.json
 /config/allPerson.json
+/config/input.json
 chromedriver.exe
 test.py
 contents.json
