@@ -211,8 +211,8 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, processNum, targe
     current_time = ''
     url = ''
     data = dict()
-    page_info_obj = dict()
     headers = __getHeaders__(pageURL)
+    headers["Connection"] = "close"
     session = requests.session()
 
     # 設定失敗重試策略
@@ -321,7 +321,7 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, processNum, targe
                                 data=data,
                                 headers=headers,
                                 timeout=configSetting.timeout,
-                                verify="./config/certs.pem",
+                                verify=False,
                                 proxies={"http": random_proxy_ip, "https": random_proxy_ip}
                                 )
 
@@ -331,6 +331,8 @@ def crawlGroupPosts(pageURL, groupPageID, groupDocID, reqName, processNum, targe
             # 文章有分享的資料才做處理
             if len(edge_list) != 0:
                 contents = contents + edge_list
+                url = edge_list[len(edge_list) - 1]["url"]
+
             if not helper.hasNextPageGroupPost(resp):
                 raise UnboundLocalError(f"Reached the last page")
             else:

@@ -54,41 +54,48 @@ def __resolverEdgesPage__(edge) -> dict:
         # actorid
         pageid = comet_sections_['context_layout']['story']['comet_sections']['actor_photo']['story']['actors'][0]['id']
 
-        try:
-            feedback_main_node = comet_sections_[
-                "feedback"]["story"]["comet_feed_ufi_container"]["story"]["story_ufi_container"]["story"]["feedback_context"]["feedback_target_with_context"]
+        if "comet_feed_ufi_container" in comet_sections_['feedback']['story']:
+            feedback_root = comet_sections_['feedback']['story']['comet_feed_ufi_container']
+            feedback_main_node = feedback_root["story"]["story_ufi_container"]["story"]["feedback_context"]["feedback_target_with_context"]
             # comment_count 留言
             comment_count = feedback_main_node["comment_rendering_instance"]["comments"]["total_count"]
-
             # reaction_count 按讚
             reaction_count = feedback_main_node["comet_ufi_summary_and_actions_renderer"]["feedback"]["reaction_count"]["count"]
             # share_count 分享
             share_count = feedback_main_node["comet_ufi_summary_and_actions_renderer"]["feedback"]["share_count"]["count"]
-
             # feedback_id
-            feedback_id = comet_sections_[
-                'feedback']['story']['comet_feed_ufi_container']['story']['feedback_context']['feedback_target_with_context']['id']
-        except:
-            # 確認有
-            feedback_main_node = comet_sections_[
-                "feedback"]["story"]["story_ufi_container"]["story"]["feedback_context"]["feedback_target_with_context"]["comet_ufi_summary_and_actions_renderer"]["feedback"]
-
+            feedback_id = feedback_root['story']['feedback_context']['feedback_target_with_context']['id']
+        elif "story_ufi_container" in comet_sections_['feedback']['story']:
+            feedback_root = comet_sections_['feedback']['story']['story_ufi_container']
+            feedback_main_node = feedback_root["story"]["feedback_context"]["feedback_target_with_context"]["comet_ufi_summary_and_actions_renderer"]["feedback"]
             # comment_count 留言
             try:
                 comment_count = feedback_main_node["comment_rendering_instance"]["comments"]["total_count"]
             except:
                 print("沒有抓到正確留言數")
                 comment_count = 0
-
             # reaction_count 按讚
             reaction_count = feedback_main_node["reaction_count"]["count"]
-
             # share_count 分享
             share_count = feedback_main_node["share_count"]["count"]
-
             # feedback_id
             feedback_id = comet_sections_["feedback"]["story"]["feedback_context"]["feedback_target_with_context"]["id"]
-
+        else :
+            feedback_root = comet_sections_['feedback']['story']['feedback_context']
+            feedback_main_node = feedback_root["feedback_target_with_context"]["ufi_renderer"]["feedback"]["comet_ufi_summary_and_actions_renderer"]["feedback"]
+            # comment_count 留言
+            try:
+                comment_count = feedback_main_node["total_comment_count"]
+            except:
+                print("沒有抓到正確留言數")
+                comment_count = 0
+            # reaction_count 按讚
+            reaction_count = feedback_main_node["reaction_count"]["count"]
+            # share_count 分享
+            share_count = feedback_main_node["share_count"]["count"]
+            # feedback_id
+            feedback_id = feedback_root["feedback_target_with_context"]["id"]
+            
         # poster_name
         poster_name = comet_sections_['content']['story']['actors'][0]['name']
 
