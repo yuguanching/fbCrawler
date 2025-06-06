@@ -161,7 +161,7 @@ def __parsingCometModern__(resp: requests.Response) -> tuple[list, str, bool, bo
 def __parsingGroupPosts__(resp: requests.Response) -> tuple[list, str, bool, bool, str]:
     edge_list = []
     writer.writeTempFile(filename="sourceCode_group_posts_edge", content=resp.text)
-    resps = resp.text.split('\n', -1)
+    resps = resp.text.split('\r\n', -1)
     temp_cursor = ""
     temp_time = ""
     is_up_to_time = True
@@ -293,8 +293,18 @@ def hasNextPage_ProfileComet(page_info_obj: dict) -> bool:
 
 
 def hasNextPageGroupPost(resp: requests.Response) -> bool:
-    resp = json.loads(resp.text.split("\r\n", -1)[-1])
-    has_next_page = resp["data"]["page_info"]["has_next_page"]
+    has_next_page = False
+    resp_split = resp.text.split("\r\n", -1)
+    for i, resp_text in enumerate(resp_split):
+        res = json.loads(resp_text)
+        if "label" not in res:
+            continue
+        else:
+            if res["label"] != "GroupsCometFeedRegularStories_paginationGroup$defer$GroupsCometFeedRegularStories_group_group_feed$page_info":
+                continue
+            else:
+                has_next_page = res["data"]["page_info"]["has_next_page"]
+                break
     if has_next_page:
         return True
     else:
